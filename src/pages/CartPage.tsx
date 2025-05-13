@@ -36,6 +36,7 @@ const CartPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
+  const [showValidation, setShowValidation] = useState(false);
 
   // Redirect ke home jika layanan tutup
   useEffect(() => {
@@ -126,6 +127,7 @@ const CartPage: React.FC = () => {
       !customerInfo.village ||
       !customerInfo.addressDetail
     ) {
+      setShowValidation(true);
       setAlertMessage("Mohon lengkapi data pengiriman");
       setShowAlert(true);
       return;
@@ -341,7 +343,7 @@ const CartPage: React.FC = () => {
           className="block text-gray-700 text-sm font-bold mb-2"
           htmlFor="name"
         >
-          Nama Pemesan
+          Nama Pemesan <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
@@ -349,10 +351,17 @@ const CartPage: React.FC = () => {
           name="name"
           value={customerInfo.name}
           onChange={handleInputChange}
-          className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+          className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
+            showValidation && !customerInfo.name ? "border-red-500" : ""
+          }`}
           placeholder="Masukkan nama Anda"
           required
         />
+        {showValidation && !customerInfo.name && (
+          <p className="text-red-500 text-xs mt-1">
+            Silakan masukkan nama pemesan
+          </p>
+        )}
       </div>
 
       <div className="mb-4">
@@ -372,14 +381,16 @@ const CartPage: React.FC = () => {
           className="block text-gray-700 text-sm font-bold mb-2"
           htmlFor="village"
         >
-          Desa
+          Desa <span className="text-red-500">*</span>
         </label>
         <select
           id="village"
           name="village"
           value={customerInfo.village || ""}
           onChange={handleInputChange}
-          className="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+          className={`shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
+            showValidation && !customerInfo.village ? "border-red-500" : ""
+          }`}
           required
         >
           <option value="">Pilih Desa</option>
@@ -389,6 +400,11 @@ const CartPage: React.FC = () => {
             </option>
           ))}
         </select>
+        {showValidation && !customerInfo.village && (
+          <p className="text-red-500 text-xs mt-1">
+            Silakan pilih desa pengiriman
+          </p>
+        )}
       </div>
 
       {customerInfo.isCustomVillage && (
@@ -397,7 +413,7 @@ const CartPage: React.FC = () => {
             className="block text-gray-700 text-sm font-bold mb-2"
             htmlFor="customVillage"
           >
-            Nama Desa
+            Nama Desa <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
@@ -405,10 +421,19 @@ const CartPage: React.FC = () => {
             name="customVillage"
             value={customerInfo.customVillage || ""}
             onChange={handleInputChange}
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
+              showValidation && !customerInfo.customVillage
+                ? "border-red-500"
+                : ""
+            }`}
             placeholder="Masukkan nama desa Anda"
             required
           />
+          {showValidation && !customerInfo.customVillage && (
+            <p className="text-red-500 text-xs mt-1">
+              Silakan masukkan nama desa
+            </p>
+          )}
         </div>
       )}
 
@@ -417,18 +442,27 @@ const CartPage: React.FC = () => {
           className="block text-gray-700 text-sm font-bold mb-2"
           htmlFor="addressDetail"
         >
-          Detail Alamat
+          Detail Alamat <span className="text-red-500">*</span>
         </label>
         <textarea
           id="addressDetail"
           name="addressDetail"
           value={customerInfo.addressDetail}
           onChange={handleInputChange}
-          className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+          className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
+            showValidation && !customerInfo.addressDetail
+              ? "border-red-500"
+              : ""
+          }`}
           placeholder="Masukkan detail alamat (RT/RW, nama gang, warna pagar, dll)"
           rows={3}
           required
         />
+        {showValidation && !customerInfo.addressDetail && (
+          <p className="text-red-500 text-xs mt-1">
+            Silakan masukkan detail alamat
+          </p>
+        )}
       </div>
 
       <div className="mb-4">
