@@ -1,0 +1,270 @@
+import React, { useState, useEffect } from "react";
+import { MenuItem as MenuItemType, CartItem } from "../types";
+import { useCart } from "../context/CartContext";
+import { useSettings } from "../context/SettingsContext";
+import { Plus, Minus, Clock, X } from "lucide-react";
+import LazyImage from "./LazyImage";
+import OptionsPopup from "./OptionsPopup";
+
+interface MenuItemProps {
+  item: MenuItemType;
+  merchantId: number;
+  isOpen: boolean;
+}
+
+const MenuItem: React.FC<MenuItemProps> = ({ item, merchantId, isOpen }) => {
+  const { addToCart, removeFromCart, getMerchantItems } = useCart();
+  const { isServiceOpen } = useSettings();
+  const [showOptions, setShowOptions] = useState(false);
+  const [showVariantPopup, setShowVariantPopup] = useState(false);
+
+  const isAvailable = isOpen && isServiceOpen;
+
+  // Helper: semua varian dari menu ini di cart (khusus merchant ini)
+  const allVariants: CartItem[] = getMerchantItems(merchantId).filter(
+    (ci) => ci.id === item.id
+  );
+  const totalQuantity = allVariants.reduce((sum, v) => sum + v.quantity, 0);
+
+  // Auto-close variant popup when all variants are removed
+  useEffect(() => {
+    if (showVariantPopup && totalQuantity === 0) {
+      setShowVariantPopup(false);
+    }
+  }, [showVariantPopup, totalQuantity]);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const handleAddToCart = (
+    item: MenuItemType,
+    quantity: number,
+    selectedOptions: {
+      level?: { label: string; value: string; extraPrice: number };
+      toppings?: { label: string; value: string; extraPrice: number }[];
+    }
+  ) => {
+    addToCart({ ...item, selectedOptions }, merchantId, quantity);
+  };
+
+  // Handler plus
+  const handlePlus = () => {
+    if (!isAvailable) return;
+    if (item.options && item.options.length > 0) {
+      setShowOptions(true);
+    } else {
+      addToCart(item, merchantId);
+    }
+  };
+
+  // Handler minus
+  const handleMinus = () => {
+    if (!isAvailable || totalQuantity === 0) return;
+    if (item.options && item.options.length > 0) {
+      if (allVariants.length === 1) {
+        removeFromCart(allVariants[0], merchantId);
+      } else {
+        setShowVariantPopup(true);
+      }
+    } else {
+      removeFromCart(item, merchantId);
+    }
+  };
+
+  // Handler untuk mengurangi varian tertentu
+  const handleMinusVariant = (variant: CartItem) => {
+    removeFromCart({ ...variant }, merchantId);
+  };
+
+  // Handler untuk menambah varian tertentu
+  const handlePlusVariant = (variant: CartItem) => {
+    addToCart({ ...variant }, merchantId);
+  };
+
+  return (
+    <>
+      <div
+        className={`bg-white rounded-lg shadow-md overflow-hidden mb-4 ${
+          !isAvailable ? "grayscale" : ""
+        }`}
+      >
+        <div className="flex p-2">
+          <LazyImage
+            src={
+              item.image.startsWith("http") ? item.image : "/placeholder.svg"
+            }
+            alt=""
+            className="w-24 h-24 rounded-lg object-cover"
+          />
+          <div className="p-4 flex-1 ml-1">
+            <h3 className="font-bold text-lg">{item.name}</h3>
+            <div className="flex justify-between items-center mt-1">
+              <span className="font-bold text-orange-500 text-lg">
+                {formatCurrency(item.price)}
+              </span>
+              {!isOpen ? (
+                <div className="text-red-600 text-base flex items-center">
+                  <Clock size={18} className="mr-1" />
+                  <span>Tutup</span>
+                </div>
+              ) : !isServiceOpen ? (
+                <div className="text-red-600 text-base flex items-center">
+                  <Clock size={18} className="mr-1" />
+                  <span>Layanan Tutup</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 ml-2">
+                  {totalQuantity > 0 ? (
+                    <>
+                      <button
+                        onClick={handleMinus}
+                        className="w-8 h-8 flex items-center justify-center border-2 border-orange-500 text-orange-500 rounded-lg transition-colors hover:bg-orange-50 active:bg-orange-100"
+                        aria-label="Kurangi jumlah"
+                      >
+                        <Minus size={24} />
+                      </button>
+                      <span className="font-medium text-xl w-4 text-center select-none">
+                        {totalQuantity}
+                      </span>
+                      <button
+                        onClick={handlePlus}
+                        className="w-8 h-8 flex items-center justify-center bg-orange-500 text-white rounded-lg transition-colors hover:bg-orange-600 active:bg-orange-700"
+                        aria-label="Tambah jumlah"
+                      >
+                        <Plus size={24} />
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={handlePlus}
+                      className="px-5 py-1 flex items-center justify-center bg-orange-500 text-white rounded-lg transition-colors hover:bg-orange-600 active:bg-orange-700"
+                      aria-label="Pesan menu ini"
+                    >
+                      <span className="font-medium text-base">Pesan</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {showOptions && (
+        <OptionsPopup
+          item={item}
+          onClose={() => setShowOptions(false)}
+          onAddToCart={handleAddToCart}
+        />
+      )}
+      {/* Popup pemilihan varian untuk minus */}
+      {showVariantPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            ref={(el) => {
+              if (el) {
+                el.addEventListener("mousedown", (e) => {
+                  if (e.target === el) {
+                    setShowVariantPopup(false);
+                  }
+                });
+              }
+            }}
+            className="bg-white rounded-lg p-4 w-[90%] max-w-md max-h-[80vh] overflow-y-auto relative"
+          >
+            <div className="sticky top-0 bg-white z-10 pb-4 border-b">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-bold">Pilih Varian</h3>
+                <button
+                  onClick={() => setShowVariantPopup(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+            </div>
+            <div className="space-y-3 mt-4">
+              {getMerchantItems(merchantId)
+                .filter((variant) => variant.id === item.id)
+                .map((variant) => {
+                  const levelValue =
+                    variant.selectedOptions?.level?.value || "-";
+                  const toppingValues =
+                    variant.selectedOptions?.toppings
+                      ?.map((t) => t.value)
+                      .sort()
+                      .join("-") || "-";
+                  const key = `${variant.id}-${levelValue}-${toppingValues}`;
+                  return (
+                    <div
+                      key={key}
+                      className="w-full p-3 border rounded-xl text-sm flex flex-col gap-1 border-orange-300"
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold truncate mr-2">
+                          {item.name}
+                        </span>
+                        <span className="font-bold text-orange-500">
+                          {formatCurrency(
+                            (variant.price +
+                              (variant.selectedOptions?.level?.extraPrice ||
+                                0) +
+                              (variant.selectedOptions?.toppings?.reduce(
+                                (sum, t) => sum + t.extraPrice,
+                                0
+                              ) || 0)) *
+                              variant.quantity
+                          )}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        {variant.selectedOptions?.level?.label && (
+                          <span>
+                            Level: {variant.selectedOptions.level.label}{" "}
+                          </span>
+                        )}
+                        {variant.selectedOptions?.toppings &&
+                          variant.selectedOptions.toppings.length > 0 && (
+                            <span>
+                              | Topping:{" "}
+                              {variant.selectedOptions.toppings
+                                .map((t: { label: string }) => t.label)
+                                .join(", ")}
+                            </span>
+                          )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-2 justify-end">
+                        <button
+                          onClick={() => handleMinusVariant(variant)}
+                          className="w-8 h-8 flex items-center justify-center border border-orange-400 text-orange-500 rounded-lg transition-colors hover:bg-orange-50"
+                          disabled={variant.quantity === 0}
+                        >
+                          <Minus size={16} />
+                        </button>
+                        <span className="mx-2 font-medium text-base w-4 text-center select-none">
+                          {variant.quantity}
+                        </span>
+                        <button
+                          onClick={() => handlePlusVariant(variant)}
+                          className="w-8 h-8 flex items-center justify-center bg-orange-500 text-white rounded-lg transition-colors hover:bg-orange-600"
+                        >
+                          <Plus size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default MenuItem;
