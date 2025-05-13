@@ -14,6 +14,7 @@ import {
   resetAllMerchantTimestamps,
   resetMenuTimestamp,
 } from "../utils/cacheUtils";
+import { isCurrentlyOpen } from "../utils/merchantUtils";
 
 interface SettingsContextType {
   isServiceOpen: boolean;
@@ -37,14 +38,35 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
       setLoading(true);
       const { data, error } = await supabase
         .from("settings")
-        .select("is_open, updated_at")
+        .select("is_open, opening_hours, updated_at")
         .single();
 
       if (error) {
         setIsServiceOpen(true);
         return true;
       } else {
-        setIsServiceOpen(data.is_open);
+        // Cek jam operasional
+        let open = false;
+        if (data.is_open && data.opening_hours) {
+          // opening_hours bisa string (json) atau object
+          let openingHoursObj = data.opening_hours;
+          if (typeof openingHoursObj === "string") {
+            try {
+              openingHoursObj = JSON.parse(openingHoursObj);
+            } catch {
+              openingHoursObj = null;
+            }
+          }
+          if (
+            openingHoursObj &&
+            openingHoursObj.open &&
+            openingHoursObj.close
+          ) {
+            open = isCurrentlyOpen(openingHoursObj);
+          }
+        }
+        const isOpenNow = data.is_open && open;
+        setIsServiceOpen(isOpenNow);
 
         const prevSettingsTimestamp = localStorage.getItem(
           TIMESTAMP_KEYS.SETTINGS
@@ -55,7 +77,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
           resetAllMerchantTimestamps();
           resetMenuTimestamp();
         }
-        return data.is_open;
+        return isOpenNow;
       }
     } catch {
       setIsServiceOpen(true);
@@ -73,15 +95,34 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({
         // Always fetch fresh service status from database
         const { data, error } = await supabase
           .from("settings")
-          .select("is_open, updated_at")
+          .select("is_open, opening_hours, updated_at")
           .single();
 
         if (error) {
           // Default to open if there's an error
           setIsServiceOpen(true);
         } else {
-          // Update state with fresh data from database
-          setIsServiceOpen(data.is_open);
+          // Cek jam operasional
+          let open = false;
+          if (data.is_open && data.opening_hours) {
+            let openingHoursObj = data.opening_hours;
+            if (typeof openingHoursObj === "string") {
+              try {
+                openingHoursObj = JSON.parse(openingHoursObj);
+              } catch {
+                openingHoursObj = null;
+              }
+            }
+            if (
+              openingHoursObj &&
+              openingHoursObj.open &&
+              openingHoursObj.close
+            ) {
+              open = isCurrentlyOpen(openingHoursObj);
+            }
+          }
+          const isOpenNow = data.is_open && open;
+          setIsServiceOpen(isOpenNow);
 
           // Check if timestamp changed for cache invalidation
           const prevSettingsTimestamp = localStorage.getItem(
