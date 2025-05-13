@@ -8,9 +8,9 @@ import { ShoppingBag, Plus } from "lucide-react";
 import { isCurrentlyOpen } from "../utils/merchantUtils";
 import { Merchant } from "../types";
 import { CartItemSkeleton } from "../components/Skeletons";
-// import { indexedDBService } from "../utils/indexedDB";
 import { useSettings } from "../context/SettingsContext";
 import CustomAlert from "../components/CustomAlert";
+import { indexedDBService } from "../utils/indexedDB";
 
 const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER;
 const VILLAGES = [
@@ -45,26 +45,23 @@ const CartPage: React.FC = () => {
     }
   }, [isServiceOpen, navigate]);
 
-  // Optimasi fetch merchant
+  // Load merchant data from IndexedDB
   useEffect(() => {
-    const fetchMerchantInfo = async () => {
-      const { data: merchants, error } = await supabase
-        .from("merchants")
-        .select("*");
-
-      if (error) {
-        console.error("Error fetching merchants:", error);
-        setMerchantsWithItems([]);
-      } else if (merchants) {
+    const loadMerchantInfo = async () => {
+      try {
+        const merchants = await indexedDBService.getMerchantInfo();
         // Filter hanya merchant yang memiliki item di cart
         const merchantsWithCartItems = merchants.filter(
-          (merchant) => getMerchantItems(merchant.id).length > 0
+          (merchant: Merchant) => getMerchantItems(merchant.id).length > 0
         );
         setMerchantsWithItems(merchantsWithCartItems);
+      } catch (error) {
+        console.error("Error loading merchant info from IndexedDB:", error);
+        setMerchantsWithItems([]);
       }
     };
 
-    if (navigator.onLine) fetchMerchantInfo();
+    loadMerchantInfo();
   }, [getMerchantItems]);
 
   const formatCurrency = (amount: number) => {

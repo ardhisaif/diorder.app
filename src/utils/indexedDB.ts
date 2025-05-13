@@ -267,6 +267,27 @@ class IndexedDBService {
       request.onsuccess = () => resolve(request.result);
     });
   }
+
+  async getMerchantInfo(): Promise<Merchant[]> {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+
+      const transaction = this.db.transaction(["merchantInfo"], "readonly");
+      const store = transaction.objectStore("merchantInfo");
+      const request = store.getAll();
+
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
+
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
+  }
 }
 
 export const indexedDBService = new IndexedDBService();
