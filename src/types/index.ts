@@ -21,17 +21,20 @@ export interface MenuItem {
   options?: {
     label: string;
     value: string;
+    category: "level" | "topping";
     extraPrice: number;
   }[];
   selectedOptions?: {
     level?: {
       label: string;
       value: string;
+      category: "level";
       extraPrice: number;
     };
     toppings?: {
       label: string;
       value: string;
+      category: "topping";
       extraPrice: number;
     }[];
   };

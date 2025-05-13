@@ -150,7 +150,19 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
 
         // Add all current items to IndexedDB
         for (const item of allItems) {
-          await indexedDBService.addToCart(item);
+          await indexedDBService.addToCart({
+            ...item,
+            selectedOptions: item.selectedOptions ? {
+              level: item.selectedOptions.level ? {
+                ...item.selectedOptions.level,
+                category: "level"
+              } : undefined,
+              toppings: item.selectedOptions.toppings?.map(topping => ({
+                ...topping,
+                category: "topping" 
+              }))
+            } : undefined
+          });
         }
       } catch (error) {
         console.error("Error syncing to IndexedDB:", error);

@@ -2,6 +2,13 @@ import React, { useState, useEffect, useRef } from "react";
 import { MenuItem } from "../types";
 import { X, Plus, Minus, ChevronDown, ChevronUp } from "lucide-react";
 
+interface OptionType {
+  label: string;
+  value: string;
+  category: "level" | "topping";
+  extraPrice: number;
+}
+
 interface OptionsPopupProps {
   item: MenuItem;
   onClose: () => void;
@@ -9,8 +16,8 @@ interface OptionsPopupProps {
     item: MenuItem,
     quantity: number,
     selectedOptions: {
-      level?: { label: string; value: string; extraPrice: number };
-      toppings?: { label: string; value: string; extraPrice: number }[];
+      level?: OptionType;
+      toppings?: OptionType[];
     }
   ) => void;
 }
@@ -21,14 +28,8 @@ const OptionsPopup: React.FC<OptionsPopupProps> = ({
   onAddToCart,
 }) => {
   const [quantity, setQuantity] = useState(1);
-  const [selectedLevel, setSelectedLevel] = useState<{
-    label: string;
-    value: string;
-    extraPrice: number;
-  } | null>(null);
-  const [selectedToppings, setSelectedToppings] = useState<
-    { label: string; value: string; extraPrice: number }[]
-  >([]);
+  const [selectedLevel, setSelectedLevel] = useState<OptionType | null>(null);
+  const [selectedToppings, setSelectedToppings] = useState<OptionType[]>([]);
   const [showAllToppings, setShowAllToppings] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
   const bottomRef = React.useRef<HTMLDivElement>(null);
@@ -89,11 +90,7 @@ const OptionsPopup: React.FC<OptionsPopupProps> = ({
     onClose();
   };
 
-  const toggleTopping = (topping: {
-    label: string;
-    value: string;
-    extraPrice: number;
-  }) => {
+  const toggleTopping = (topping: OptionType) => {
     setSelectedToppings((prev) => {
       const exists = prev.find((t) => t.value === topping.value);
       if (exists) {
@@ -103,10 +100,11 @@ const OptionsPopup: React.FC<OptionsPopupProps> = ({
     });
   };
 
+  // Filter options berdasarkan category
   const spiceLevels =
-    item.options?.filter((opt) => opt.value.startsWith("level")) || [];
+    item.options?.filter((opt) => opt.category === "level") || [];
   const toppings =
-    item.options?.filter((opt) => !opt.value.startsWith("level")) || [];
+    item.options?.filter((opt) => opt.category === "topping") || [];
   const initialToppings = toppings.slice(0, 3);
   const remainingToppings = toppings.slice(3);
 
@@ -129,7 +127,7 @@ const OptionsPopup: React.FC<OptionsPopupProps> = ({
           </div>
         </div>
 
-        <div className="p-4">
+        <div className="flex-1 overflow-y-auto p-4">
           <div className="flex items-start gap-4 mb-6">
             <img
               src={
@@ -263,26 +261,26 @@ const OptionsPopup: React.FC<OptionsPopupProps> = ({
               )}
             </div>
           </div>
+        </div>
 
-          <div ref={bottomRef} className="mt-8">
-            <div className="flex justify-between items-center mb-4">
-              <span className="font-bold text-lg text-gray-800">Total</span>
-              <span className="font-bold text-2xl text-orange-500">
-                {formatCurrency(calculateTotal())}
-              </span>
-            </div>
-            <button
-              onClick={handleAddToCart}
-              disabled={spiceLevels.length > 0 && !selectedLevel}
-              className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-200 ${
-                spiceLevels.length === 0 || selectedLevel
-                  ? "bg-orange-500 text-white hover:bg-orange-600 active:bg-orange-700"
-                  : "bg-gray-200 text-gray-500"
-              }`}
-            >
-              Tambah ke Keranjang
-            </button>
+        <div className="sticky bottom-0 bg-white border-t p-4">
+          <div className="flex justify-between items-center mb-4">
+            <span className="font-bold text-lg text-gray-800">Total</span>
+            <span className="font-bold text-2xl text-orange-500">
+              {formatCurrency(calculateTotal())}
+            </span>
           </div>
+          <button
+            onClick={handleAddToCart}
+            disabled={spiceLevels.length > 0 && !selectedLevel}
+            className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-200 ${
+              spiceLevels.length === 0 || selectedLevel
+                ? "bg-orange-500 text-white hover:bg-orange-600 active:bg-orange-700"
+                : "bg-gray-200 text-gray-500"
+            }`}
+          >
+            Tambah ke Keranjang
+          </button>
         </div>
       </div>
     </div>
