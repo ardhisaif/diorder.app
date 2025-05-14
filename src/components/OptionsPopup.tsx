@@ -28,7 +28,12 @@ const OptionsPopup: React.FC<OptionsPopupProps> = ({
   onAddToCart,
 }) => {
   const [quantity, setQuantity] = useState(1);
-  const [selectedLevel, setSelectedLevel] = useState<OptionType | null>(null);
+  const [selectedLevel, setSelectedLevel] = useState<OptionType | null>(() => {
+    const defaultLevel = item.options?.find(
+      (opt) => opt.category === "level" && opt.value === "level 0"
+    );
+    return defaultLevel || null;
+  });
   const [selectedToppings, setSelectedToppings] = useState<OptionType[]>([]);
   const [showAllToppings, setShowAllToppings] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
