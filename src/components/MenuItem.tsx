@@ -49,7 +49,20 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, merchantId, isOpen }) => {
       toppings?: { label: string; value: string; extraPrice: number }[];
     }
   ) => {
-    addToCart({ ...item, selectedOptions }, merchantId, quantity);
+    const optionsWithCategory = {
+      level: selectedOptions.level
+        ? { ...selectedOptions.level, category: "level" as const }
+        : undefined,
+      toppings: selectedOptions.toppings?.map((topping) => ({
+        ...topping,
+        category: "topping" as const,
+      })),
+    };
+    addToCart(
+      { ...item, selectedOptions: optionsWithCategory },
+      merchantId,
+      quantity
+    );
   };
 
   // Handler plus
