@@ -43,7 +43,7 @@ const VILLAGE_SHIPPING_COSTS: { [key: string]: number } = {
 
 // Sort villages by shipping cost
 const VILLAGES = Object.entries(VILLAGE_SHIPPING_COSTS)
-  .sort((a, b) => a[1] - b[1])
+  .sort((a, b) => a[0].localeCompare(b[0]))
   .map(([village]) => village);
 
 const CartPage: React.FC = () => {
