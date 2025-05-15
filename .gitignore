@@ -27,3 +27,5 @@ dist-ssr
 
 /dataBackup
 /src/utils/supabase/sandbox.js
+
+sandbox.js

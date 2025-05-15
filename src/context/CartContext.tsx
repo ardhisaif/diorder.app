@@ -73,6 +73,33 @@ const getInitialState = (): CartState => {
   };
 };
 
+// Village shipping costs mapping
+const VILLAGE_SHIPPING_COSTS: { [key: string]: number } = {
+  "Ambeng-ambeng Watangrejo": 10000,
+  Bendungan: 10000,
+  Duduksampeyan: 5000,
+  Glanggang: 8000,
+  Gredek: 8000,
+  Kandangan: 8000,
+  Kawistowindu: 8000,
+  Kemudi: 8000,
+  "Kramat Kulon": 10000,
+  Palebon: 8000,
+  Pandanan: 10000,
+  Panjunan: 10000,
+  Petisbenem: 5000,
+  Samirplapan: 5000,
+  Setrohadi: 5000,
+  Sumari: 8000,
+  Sumengko: 5000,
+  Tambakrejo: 10000,
+  Tebaloan: 8000,
+  Tirem: 10000,
+  Tumapel: 8000,
+  "Wadak Kidul": 8000,
+  "Wadak Lor": 10000,
+};
+
 export const CartProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
@@ -152,16 +179,20 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
         for (const item of allItems) {
           await indexedDBService.addToCart({
             ...item,
-            selectedOptions: item.selectedOptions ? {
-              level: item.selectedOptions.level ? {
-                ...item.selectedOptions.level,
-                category: "level"
-              } : undefined,
-              toppings: item.selectedOptions.toppings?.map(topping => ({
-                ...topping,
-                category: "topping" 
-              }))
-            } : undefined
+            selectedOptions: item.selectedOptions
+              ? {
+                  level: item.selectedOptions.level
+                    ? {
+                        ...item.selectedOptions.level,
+                        category: "level",
+                      }
+                    : undefined,
+                  toppings: item.selectedOptions.toppings?.map((topping) => ({
+                    ...topping,
+                    category: "topping",
+                  })),
+                }
+              : undefined,
           });
         }
       } catch (error) {
@@ -195,12 +226,16 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
       return -1; // Menggunakan -1 sebagai penanda khusus
     }
 
-    const subtotal = getSubtotal();
-    const baseFee = 5000;
-    // For orders up to 100,000, shipping is 5,000
-    // For orders above 100,000, add 5,000 for every 100,000 increment
-    const multiplier = subtotal <= 100000 ? 1 : Math.ceil(subtotal / 100000);
-    return baseFee * multiplier;
+    // Get the village from customer info
+    const village = state.customerInfo.village;
+
+    // If village exists in our mapping, return its shipping cost
+    if (village && village in VILLAGE_SHIPPING_COSTS) {
+      return VILLAGE_SHIPPING_COSTS[village];
+    }
+
+    // Default shipping cost for unknown villages
+    return 5000;
   };
 
   const addToCart = (
