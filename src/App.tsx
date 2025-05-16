@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider, Outlet } from "react-router-dom";
 import { CartProvider } from "./context/CartContext";
 import { SettingsProvider } from "./context/SettingsContext";
 import { ToastProvider } from "./context/ToastContext";
+import { AnnouncementProvider } from "./context/AnnouncementContext";
 import HomePage from "./pages/HomePage";
 import MenuPage from "./pages/MenuPage";
 import CartPage from "./pages/CartPage";
@@ -39,9 +40,11 @@ function App() {
       <ToastProvider>
         <SettingsProvider>
           <CartProvider>
-            <div className="max-w-md mx-auto min-h-screen bg-gray-100 shadow-lg relative">
-              <RouterProvider router={router} />
-            </div>
+            <AnnouncementProvider>
+              <div className="max-w-md mx-auto min-h-screen bg-gray-100 shadow-lg relative">
+                <RouterProvider router={router} />
+              </div>
+            </AnnouncementProvider>
           </CartProvider>
         </SettingsProvider>
       </ToastProvider>

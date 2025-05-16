@@ -18,6 +18,8 @@ import {
   updateStoredTimestamp,
   TIMESTAMP_KEYS,
 } from "../utils/cacheUtils";
+import { useAnnouncements } from "../context/AnnouncementContext";
+import AnnouncementBanner from "../components/AnnouncementBanner";
 // import { getLastFetchTime, updateLastFetchTime } from "../utils/cacheUtils";
 
 // Cache duration in milliseconds (5 minutes)
@@ -48,6 +50,7 @@ const HomePage: React.FC = () => {
   const { getItemCount, getSubtotal, calculateDeliveryFee } = useCart();
   const { isServiceOpen, refreshServiceStatus } = useSettings();
   const navigate = useNavigate();
+  const { announcements, isLoading: announcementLoading } = useAnnouncements();
 
   const totalItems = getItemCount();
   const totalAmount = useMemo(() => getSubtotal(), [getSubtotal]);
@@ -271,6 +274,19 @@ const HomePage: React.FC = () => {
     <div className="min-h-screen bg-gray-100 pb-24">
       <Header title="diorder" />
       {!isServiceOpen && <ServiceClosedBanner className="mx-4 mt-4" />}
+
+      {/* Announcements */}
+      {!announcementLoading && announcements.length > 0 && (
+        <div className="mx-4 mt-4 space-y-2">
+          {announcements.map((announcement) => (
+            <AnnouncementBanner
+              key={announcement.id}
+              announcement={announcement}
+            />
+          ))}
+        </div>
+      )}
+
       {isOffline && (
         <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mx-4 mt-4 flex items-center">
           <WifiOff size={20} className="mr-2" />
@@ -280,6 +296,7 @@ const HomePage: React.FC = () => {
           </span>
         </div>
       )}
+
       <main className="container mx-auto px-4 py-6">
         <div className="flex justify-center mb-4 space-x-2 sm:space-x-4">
           <button
