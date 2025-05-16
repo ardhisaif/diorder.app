@@ -13,13 +13,38 @@ import CustomAlert from "../components/CustomAlert";
 import { indexedDBService } from "../utils/indexedDB";
 
 const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER;
-const VILLAGES = [
-  "Duduksampeyan",
-  "Sumengko",
-  "Petisbenem",
-  "Brakung",
-  "Desa Lain",
-];
+
+// Village shipping costs mapping
+const VILLAGE_SHIPPING_COSTS: { [key: string]: number } = {
+  "Ambeng-ambeng Watangrejo": 10000,
+  Bendungan: 10000,
+  Duduksampeyan: 5000,
+  Glanggang: 8000,
+  Gredek: 8000,
+  Kandangan: 8000,
+  Kawistowindu: 8000,
+  Kemudi: 8000,
+  "Kramat Kulon": 10000,
+  Palebon: 8000,
+  Pandanan: 10000,
+  Panjunan: 10000,
+  Petisbenem: 5000,
+  Samirplapan: 5000,
+  Setrohadi: 5000,
+  Sumari: 8000,
+  Sumengko: 5000,
+  Tambakrejo: 10000,
+  Tebaloan: 8000,
+  Tirem: 10000,
+  Tumapel: 8000,
+  "Wadak Kidul": 8000,
+  "Wadak Lor": 10000,
+};
+
+// Sort villages by shipping cost
+const VILLAGES = Object.entries(VILLAGE_SHIPPING_COSTS)
+  .sort((a, b) => a[0].localeCompare(b[0]))
+  .map(([village]) => village);
 
 const CartPage: React.FC = () => {
   const {
@@ -393,9 +418,11 @@ const CartPage: React.FC = () => {
           <option value="">Pilih Desa</option>
           {VILLAGES.map((village) => (
             <option key={village} value={village}>
-              {village}
+              {village.padEnd(40, " ")} | Ongkir Rp.
+              {VILLAGE_SHIPPING_COSTS[village].toLocaleString("id-ID")}
             </option>
           ))}
+          <option value="Desa Lain">Desa Lain (Ongkir Nego)</option>
         </select>
         {showValidation && !customerInfo.village && (
           <p className="text-red-500 text-xs mt-1">
