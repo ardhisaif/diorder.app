@@ -46,6 +46,24 @@ const VILLAGES = Object.entries(VILLAGE_SHIPPING_COSTS)
   .sort((a, b) => a[0].localeCompare(b[0]))
   .map(([village]) => village);
 
+// Helper untuk ambil info group & option dari menu
+const getOptionInfo = (menu, groupId, value) => {
+  if (!menu?.options?.optionGroups) return null;
+  const group = menu.options.optionGroups.find((g) => g.id === groupId);
+  if (!group) return null;
+  if (Array.isArray(value)) {
+    return value
+      .map((val) => {
+        const opt = group.options.find((o) => o.id === val);
+        return opt ? { group, opt } : null;
+      })
+      .filter(Boolean);
+  } else {
+    const opt = group.options.find((o) => o.id === value);
+    return opt ? [{ group, opt }] : null;
+  }
+};
+
 const CartPage: React.FC = () => {
   const {
     getMerchantItems,
@@ -195,30 +213,22 @@ const CartPage: React.FC = () => {
         message += `*${merchant.name}*\n`;
         items.forEach((item) => {
           message += `• ${item.name} (${item.quantity}x)\n`;
-
-          // Add base price
           message += `  Harga: ${formatCurrency(item.price)}\n`;
-
-          // Add level if selected
-          if (item.selectedOptions?.level) {
-            message += `  Level: ${
-              item.selectedOptions.level.label
-            } (+${formatCurrency(item.selectedOptions.level.extraPrice)})\n`;
-          }
-
-          // Add toppings if any
-          if (
-            item.selectedOptions?.toppings &&
-            item.selectedOptions.toppings.length > 0
-          ) {
-            message += `  Topping:\n`;
-            item.selectedOptions.toppings.forEach((topping) => {
-              message += `    - ${topping.label} (+${formatCurrency(
-                topping.extraPrice
-              )})\n`;
+          // Loop semua group di selectedOptions
+          if (item.selectedOptions && item.options?.optionGroups) {
+            Object.entries(item.selectedOptions).forEach(([groupId, value]) => {
+              const infos = getOptionInfo(item, groupId, value);
+              if (infos) {
+                infos.forEach(({ group, opt }) => {
+                  message += `  ${group.title}: ${opt.name}`;
+                  if (opt.extraPrice > 0) {
+                    message += ` (+${formatCurrency(opt.extraPrice)})`;
+                  }
+                  message += `\n`;
+                });
+              }
             });
           }
-
           // Add subtotal for this item
           const itemTotal =
             item.price * item.quantity +

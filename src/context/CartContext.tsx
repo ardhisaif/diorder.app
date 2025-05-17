@@ -100,6 +100,21 @@ const VILLAGE_SHIPPING_COSTS: { [key: string]: number } = {
   "Wadak Lor": 10000,
 };
 
+// Helper untuk membuat itemKey dinamis dari selectedOptions
+function makeItemKey(selectedOptions: any) {
+  if (!selectedOptions) return "default";
+  return Object.entries(selectedOptions)
+    .map(([groupId, value]) => {
+      if (Array.isArray(value)) {
+        return `${groupId}:${value.sort().join(",")}`;
+      } else {
+        return `${groupId}:${value}`;
+      }
+    })
+    .sort()
+    .join("|");
+}
+
 export const CartProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
@@ -265,28 +280,14 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
       const merchantItems = prevState.items[merchantId] || [];
 
       // Create a unique identifier for the item based on its options
-      const itemKey = item.selectedOptions
-        ? `${item.id}-${item.selectedOptions.level?.value}-${
-            item.selectedOptions.toppings
-              ?.map((t) => t.value)
-              .sort()
-              .join("-") || ""
-          }`
-        : item.id.toString();
+      const itemKey = makeItemKey(item.selectedOptions);
 
       const existingItem = merchantItems.find((cartItem) => {
         if (!item.selectedOptions && !cartItem.selectedOptions) {
           return cartItem.id === item.id;
         }
         if (item.selectedOptions && cartItem.selectedOptions) {
-          const cartItemKey = `${cartItem.id}-${
-            cartItem.selectedOptions.level?.value
-          }-${
-            cartItem.selectedOptions.toppings
-              ?.map((t) => t.value)
-              .sort()
-              .join("-") || ""
-          }`;
+          const cartItemKey = makeItemKey(cartItem.selectedOptions);
           return cartItemKey === itemKey;
         }
         return false;
@@ -294,14 +295,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
 
       const updatedMerchantItems = existingItem
         ? merchantItems.map((cartItem) => {
-            const cartItemKey = cartItem.selectedOptions
-              ? `${cartItem.id}-${cartItem.selectedOptions.level?.value}-${
-                  cartItem.selectedOptions.toppings
-                    ?.map((t) => t.value)
-                    .sort()
-                    .join("-") || ""
-                }`
-              : cartItem.id.toString();
+            const cartItemKey = makeItemKey(cartItem.selectedOptions);
 
             return cartItemKey === itemKey
               ? { ...cartItem, quantity: cartItem.quantity + quantity }
@@ -323,25 +317,11 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     setState((prevState) => {
       const merchantItems = prevState.items[merchantId] || [];
       // Create a unique identifier for the item based on its options
-      const itemKey = item.selectedOptions
-        ? `${item.id}-${item.selectedOptions.level?.value}-${
-            item.selectedOptions.toppings
-              ?.map((t) => t.value)
-              .sort()
-              .join("-") || ""
-          }`
-        : item.id.toString();
+      const itemKey = makeItemKey(item.selectedOptions);
 
       const updatedMerchantItems = merchantItems
         .map((cartItem) => {
-          const cartItemKey = cartItem.selectedOptions
-            ? `${cartItem.id}-${cartItem.selectedOptions.level?.value}-${
-                cartItem.selectedOptions.toppings
-                  ?.map((t) => t.value)
-                  .sort()
-                  .join("-") || ""
-              }`
-            : cartItem.id.toString();
+          const cartItemKey = makeItemKey(cartItem.selectedOptions);
 
           if (cartItemKey === itemKey) {
             return cartItem.quantity > 1
@@ -426,14 +406,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
 
       // Delete each item
       for (const item of cartItems) {
-        const itemKey = item.selectedOptions
-          ? `${item.selectedOptions.level?.value || ""}-${
-              item.selectedOptions.toppings
-                ?.map((t) => t.value)
-                .sort()
-                .join("-") || ""
-            }`
-          : "default";
+        const itemKey = makeItemKey(item.selectedOptions);
         await indexedDBService.removeFromCart(
           item.id,
           item.merchant_id,

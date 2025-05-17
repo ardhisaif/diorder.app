@@ -141,19 +141,27 @@ class IndexedDBService {
     });
   }
 
+  // Helper untuk membuat itemKey dinamis dari selectedOptions
+  function makeItemKey(selectedOptions: any) {
+    if (!selectedOptions) return "default";
+    return Object.entries(selectedOptions)
+      .map(([groupId, value]) => {
+        if (Array.isArray(value)) {
+          return `${groupId}:${value.sort().join(",")}`;
+        } else {
+          return `${groupId}:${value}`;
+        }
+      })
+      .sort()
+      .join("|");
+  }
+
   // Cart methods
   async addToCart(item: CartItem): Promise<void> {
     const store = this.getStore("cartItems", "readwrite");
     return new Promise((resolve, reject) => {
       // Create a unique key for the item based on its options
-      const itemKey = item.selectedOptions
-        ? `${item.selectedOptions.level?.value || ""}-${
-            item.selectedOptions.toppings
-              ?.map((t) => t.value)
-              .sort()
-              .join("-") || ""
-          }`
-        : "default";
+      const itemKey = makeItemKey(item.selectedOptions);
 
       // Add the item with its unique key
       const request = store.put({

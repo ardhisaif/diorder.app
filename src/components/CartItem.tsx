@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CartItem as CartItemType } from "../types";
+import { CartItem as CartItemType, MenuItem } from "../types";
 import { useCart } from "../context/CartContext";
 import { Plus, Minus } from "lucide-react";
 import LazyImage from "./LazyImage";
@@ -7,9 +7,10 @@ import LazyImage from "./LazyImage";
 interface CartItemProps {
   item: CartItemType;
   merchantId: number;
+  menuData?: MenuItem[];
 }
 
-const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
+const CartItem: React.FC<CartItemProps> = ({ item, merchantId, menuData }) => {
   const { updateQuantity, updateItemNotes } = useCart();
   const [notes, setNotes] = useState(item.notes || "");
 
@@ -21,69 +22,70 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
     }).format(amount);
   };
 
+  const menu =
+    menuData?.find((m) => m.id === item.id) || (item as unknown as MenuItem);
+
+  const getOptionInfo = (groupId: string, value: string | string[]) => {
+    if (!menu?.options?.optionGroups) return null;
+    const group = menu.options.optionGroups.find((g) => g.id === groupId);
+    if (!group) return null;
+    if (Array.isArray(value)) {
+      return value
+        .map((val) => {
+          const opt = group.options.find((o) => o.id === val);
+          return opt ? { group, opt } : null;
+        })
+        .filter(Boolean);
+    } else {
+      const opt = group.options.find((o) => o.id === value);
+      return opt ? [{ group, opt }] : null;
+    }
+  };
+
   const calculateItemTotal = () => {
     let total = item.price * item.quantity;
-
-    // Add level price if exists
-    if (item.selectedOptions?.level) {
-      total += item.selectedOptions.level.extraPrice * item.quantity;
-    }
-
-    // Add toppings price if exists
-    if (item.selectedOptions?.toppings) {
-      item.selectedOptions.toppings.forEach((topping) => {
-        total += topping.extraPrice * item.quantity;
+    if (item.selectedOptions && menu?.options?.optionGroups) {
+      Object.entries(item.selectedOptions).forEach(([groupId, value]) => {
+        const infos = getOptionInfo(groupId, value);
+        if (infos) {
+          infos.forEach(({ opt }) => {
+            total += opt.extraPrice * item.quantity;
+          });
+        }
       });
     }
-
     return total;
   };
 
   const renderPriceBreakdown = () => {
     const breakdown = [];
-
-    // Base price
     breakdown.push(
       <div key="base" className="flex justify-between text-sm">
         <span>Harga Dasar</span>
         <span>{formatCurrency(item.price)}</span>
       </div>
     );
-
-    // Level price if exists
-    if (item.selectedOptions?.level) {
-      breakdown.push(
-        <div key="level" className="flex justify-between text-sm">
-          <span>{item.selectedOptions.level.label}</span>
-          <span>{formatCurrency(item.selectedOptions.level.extraPrice)}</span>
-        </div>
-      );
-    }
-
-    // Toppings prices if exist
-    if (item.selectedOptions?.toppings) {
-      item.selectedOptions.toppings.forEach((topping, index) => {
-        breakdown.push(
-          <div
-            key={`topping-${index}`}
-            className="flex justify-between text-sm"
-          >
-            <span>+ {topping.label}</span>
-            <span>{formatCurrency(topping.extraPrice)}</span>
-          </div>
-        );
+    if (item.selectedOptions && menu?.options?.optionGroups) {
+      Object.entries(item.selectedOptions).forEach(([groupId, value]) => {
+        const infos = getOptionInfo(groupId, value);
+        if (infos) {
+          infos.forEach(({ group, opt }, idx) => {
+            breakdown.push(
+              <div
+                key={`${groupId}-${opt.id}-${idx}`}
+                className="flex justify-between text-sm"
+              >
+                <span>
+                  {group.title}: {opt.name}
+                </span>
+                <span>{formatCurrency(opt.extraPrice)}</span>
+              </div>
+            );
+          });
+        }
       });
     }
-
-    // Subtotal per item
-    const subtotalPerItem =
-      item.price +
-      (item.selectedOptions?.level?.extraPrice || 0) +
-      (item.selectedOptions?.toppings?.reduce(
-        (sum, t) => sum + t.extraPrice,
-        0
-      ) || 0);
-
+    const subtotalPerItem = calculateItemTotal() / item.quantity;
     breakdown.push(
       <div
         key="subtotal"
@@ -93,15 +95,12 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
         <span>{formatCurrency(subtotalPerItem)}</span>
       </div>
     );
-
-    // Total for all items
     breakdown.push(
       <div key="total" className="flex justify-between text-sm font-bold mt-1">
         <span>Total ({item.quantity} item)</span>
         <span>{formatCurrency(calculateItemTotal())}</span>
       </div>
     );
-
     return breakdown;
   };
 
@@ -115,18 +114,19 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
         />
         <div className="ml-4 flex-1">
           <h3 className="font-bold text-lg">{item.name}</h3>
-          {item.selectedOptions?.level && (
-            <p className="text-gray-600 text-base">
-              Level: {item.selectedOptions.level.label}
-            </p>
+          {item.selectedOptions && menu?.options?.optionGroups && (
+            <div className="text-gray-600 text-base">
+              {Object.entries(item.selectedOptions).map(([groupId, value]) => {
+                const infos = getOptionInfo(groupId, value);
+                if (!infos) return null;
+                return infos.map(({ group, opt }, idx) => (
+                  <div key={`${groupId}-${opt.id}-${idx}`}>
+                    {group.title}: {opt.name}
+                  </div>
+                ));
+              })}
+            </div>
           )}
-          {item.selectedOptions?.toppings &&
-            item.selectedOptions.toppings.length > 0 && (
-              <p className="text-gray-600 text-base">
-                Topping:{" "}
-                {item.selectedOptions.toppings.map((t) => t.label).join(", ")}
-              </p>
-            )}
           <div className="mt-2">
             <textarea
               value={notes}

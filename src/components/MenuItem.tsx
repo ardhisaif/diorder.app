@@ -91,6 +91,24 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, merchantId, isOpen }) => {
     addToCart({ ...variant }, merchantId);
   };
 
+  // Helper untuk ambil info group & option dari menu
+  const getOptionInfo = (menu, groupId, value) => {
+    if (!menu?.options?.optionGroups) return null;
+    const group = menu.options.optionGroups.find((g) => g.id === groupId);
+    if (!group) return null;
+    if (Array.isArray(value)) {
+      return value
+        .map((val) => {
+          const opt = group.options.find((o) => o.id === val);
+          return opt ? { group, opt } : null;
+        })
+        .filter(Boolean);
+    } else {
+      const opt = group.options.find((o) => o.id === value);
+      return opt ? [{ group, opt }] : null;
+    }
+  };
+
   return (
     <>
       <div
@@ -228,20 +246,17 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, merchantId, isOpen }) => {
                         </span>
                       </div>
                       <div className="text-xs text-gray-600">
-                        {variant.selectedOptions?.level?.label && (
-                          <span>
-                            Level: {variant.selectedOptions.level.label}{" "}
-                          </span>
+                        {Object.entries(variant.selectedOptions || {}).map(
+                          ([groupId, value]) => {
+                            const infos = getOptionInfo(item, groupId, value);
+                            if (!infos) return null;
+                            return infos.map(({ group, opt }, idx) => (
+                              <span key={`${groupId}-${opt.id}-${idx}`}>
+                                {group.title}: {opt.name}
+                              </span>
+                            ));
+                          }
                         )}
-                        {variant.selectedOptions?.toppings &&
-                          variant.selectedOptions.toppings.length > 0 && (
-                            <span>
-                              | Topping:{" "}
-                              {variant.selectedOptions.toppings
-                                .map((t: { label: string }) => t.label)
-                                .join(", ")}
-                            </span>
-                          )}
                       </div>
                       <div className="flex items-center gap-2 mt-2 justify-end">
                         <button
