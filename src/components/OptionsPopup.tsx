@@ -1,13 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { MenuItem } from "../types";
+import { MenuItem, MenuOptionGroup, MenuOption } from "../types";
 import { X, Plus, Minus, ChevronDown, ChevronUp } from "lucide-react";
-
-interface OptionType {
-  label: string;
-  value: string;
-  category: "level" | "topping";
-  extraPrice: number;
-}
 
 interface OptionsPopupProps {
   item: MenuItem;
@@ -15,10 +8,7 @@ interface OptionsPopupProps {
   onAddToCart: (
     item: MenuItem,
     quantity: number,
-    selectedOptions: {
-      level?: OptionType;
-      toppings?: OptionType[];
-    }
+    selectedOptions: { [groupId: string]: string | string[] }
   ) => void;
 }
 
@@ -28,14 +18,11 @@ const OptionsPopup: React.FC<OptionsPopupProps> = ({
   onAddToCart,
 }) => {
   const [quantity, setQuantity] = useState(1);
-  const [selectedLevel, setSelectedLevel] = useState<OptionType | null>(() => {
-    const defaultLevel = item.options?.find(
-      (opt) => opt.category === "level" && opt.value === "level 0"
-    );
-    return defaultLevel || null;
-  });
-  const [selectedToppings, setSelectedToppings] = useState<OptionType[]>([]);
-  const [showAllToppings, setShowAllToppings] = useState(false);
+  // State untuk selected per group
+  const [selectedOptions, setSelectedOptions] = useState<{
+    [groupId: string]: string | string[];
+  }>({});
+  const [showAll, setShowAll] = useState<{ [groupId: string]: boolean }>({});
   const [hasScrolled, setHasScrolled] = useState(false);
   const bottomRef = React.useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -50,22 +37,21 @@ const OptionsPopup: React.FC<OptionsPopupProps> = ({
         onClose();
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [onClose]);
 
-  // Auto-scroll to bottom after first level selection
+  // Auto-scroll to bottom after first group selection (optional)
   useEffect(() => {
-    if (selectedLevel && !hasScrolled) {
+    if (!hasScrolled && Object.keys(selectedOptions).length > 0) {
       setTimeout(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
         setHasScrolled(true);
       }, 200);
     }
-  }, [selectedLevel, hasScrolled]);
+  }, [selectedOptions, hasScrolled]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -75,43 +61,68 @@ const OptionsPopup: React.FC<OptionsPopupProps> = ({
     }).format(amount);
   };
 
+  // Hitung total harga
   const calculateTotal = () => {
     let total = item.price * quantity;
-    if (selectedLevel) {
-      total += selectedLevel.extraPrice * quantity;
+    if (item.options?.optionGroups) {
+      item.options.optionGroups.forEach((group) => {
+        const selected = selectedOptions[group.id];
+        if (group.type.startsWith("single")) {
+          const opt = group.options.find((o) => o.id === selected);
+          if (opt) total += opt.extraPrice * quantity;
+        } else if (
+          group.type === "multiple_optional" &&
+          Array.isArray(selected)
+        ) {
+          selected.forEach((selId) => {
+            const opt = group.options.find((o) => o.id === selId);
+            if (opt) total += opt.extraPrice * quantity;
+          });
+        }
+      });
     }
-    selectedToppings.forEach((topping) => {
-      total += topping.extraPrice * quantity;
-    });
     return total;
   };
 
+  // Handler select option
+  const handleSelect = (group: MenuOptionGroup, option: MenuOption) => {
+    if (group.type.startsWith("single")) {
+      setSelectedOptions((prev) => ({ ...prev, [group.id]: option.id }));
+    } else if (group.type === "multiple_optional") {
+      setSelectedOptions((prev) => {
+        const prevArr = Array.isArray(prev[group.id])
+          ? (prev[group.id] as string[])
+          : [];
+        if (prevArr.includes(option.id)) {
+          return {
+            ...prev,
+            [group.id]: prevArr.filter((id) => id !== option.id),
+          };
+        } else {
+          if (group.maxSelections && prevArr.length >= group.maxSelections)
+            return prev;
+          return { ...prev, [group.id]: [...prevArr, option.id] };
+        }
+      });
+    }
+  };
+
+  // Validasi required
+  const isValid = () => {
+    if (!item.options?.optionGroups) return true;
+    for (const group of item.options.optionGroups) {
+      if (group.type === "single_required" && !selectedOptions[group.id]) {
+        return false;
+      }
+    }
+    return true;
+  };
+
   const handleAddToCart = () => {
-    if (spiceLevels.length > 0 && !selectedLevel) return;
-    onAddToCart(item, quantity, {
-      level: selectedLevel || undefined,
-      toppings: selectedToppings.length > 0 ? selectedToppings : undefined,
-    });
+    if (!isValid()) return;
+    onAddToCart(item, quantity, selectedOptions);
     onClose();
   };
-
-  const toggleTopping = (topping: OptionType) => {
-    setSelectedToppings((prev) => {
-      const exists = prev.find((t) => t.value === topping.value);
-      if (exists) {
-        return prev.filter((t) => t.value !== topping.value);
-      }
-      return [...prev, topping];
-    });
-  };
-
-  // Filter options berdasarkan category
-  const spiceLevels =
-    item.options?.filter((opt) => opt.category === "level") || [];
-  const toppings =
-    item.options?.filter((opt) => opt.category === "topping") || [];
-  const initialToppings = toppings.slice(0, 3);
-  const remainingToppings = toppings.slice(3);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50">
@@ -131,7 +142,6 @@ const OptionsPopup: React.FC<OptionsPopupProps> = ({
             </button>
           </div>
         </div>
-
         <div className="flex-1 overflow-y-auto p-4">
           <div className="flex items-start gap-4 mb-6">
             <img
@@ -172,102 +182,115 @@ const OptionsPopup: React.FC<OptionsPopupProps> = ({
             </div>
           </div>
 
-          {spiceLevels.length > 0 && (
-            <div className="mb-6">
-              <h4 className="font-bold text-lg mb-4 text-gray-800">
-                Pilih Level Pedas
+          {/* Render option groups dinamis */}
+          {item.options?.optionGroups?.map((group) => (
+            <div className="mb-6" key={group.id}>
+              <h4 className="font-bold text-lg mb-2 text-gray-800">
+                {group.title}
               </h4>
+              {group.description && (
+                <div className="text-sm text-gray-500 mb-2">
+                  {group.description}
+                </div>
+              )}
               <div className="space-y-3">
-                {spiceLevels.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => setSelectedLevel(option)}
-                    className={`w-full p-4 border-2 rounded-xl text-base flex justify-between items-center transition-all duration-200 ${
-                      selectedLevel?.value === option.value
-                        ? "border-orange-500 bg-orange-50 text-orange-500"
-                        : "border-gray-200 hover:border-orange-300"
-                    }`}
-                  >
-                    <span className="font-medium">{option.label}</span>
-                    <span className="text-sm font-medium">
-                      +{formatCurrency(option.extraPrice)}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="mb-6">
-            <h4 className="font-bold text-lg mb-4 text-gray-800">
-              Pilih Topping (Opsional)
-            </h4>
-            <div className="space-y-3">
-              {initialToppings.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => toggleTopping(option)}
-                  className={`w-full p-4 border-2 rounded-xl text-base flex justify-between items-center transition-all duration-200 ${
-                    selectedToppings.some((t) => t.value === option.value)
-                      ? "border-orange-500 bg-orange-50 text-orange-500"
-                      : "border-gray-200 hover:border-orange-300"
-                  }`}
-                >
-                  <span className="font-medium">{option.label}</span>
-                  <span className="text-sm font-medium">
-                    +{formatCurrency(option.extraPrice)}
-                  </span>
-                </button>
-              ))}
-
-              {remainingToppings.length > 0 && (
-                <>
-                  {showAllToppings && (
-                    <div className="space-y-3 mt-3">
-                      {remainingToppings.map((option) => (
-                        <button
-                          key={option.value}
-                          onClick={() => toggleTopping(option)}
-                          className={`w-full p-4 border-2 rounded-xl text-base flex justify-between items-center transition-all duration-200 ${
-                            selectedToppings.some(
-                              (t) => t.value === option.value
-                            )
-                              ? "border-orange-500 bg-orange-50 text-orange-500"
-                              : "border-gray-200 hover:border-orange-300"
-                          }`}
-                        >
-                          <span className="font-medium">{option.label}</span>
-                          <span className="text-sm font-medium">
-                            +{formatCurrency(option.extraPrice)}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <button
-                    onClick={() => setShowAllToppings(!showAllToppings)}
-                    className="w-full p-4 text-base text-orange-500 hover:text-orange-600 flex items-center justify-center gap-2"
-                  >
-                    {showAllToppings ? (
-                      <>
-                        <span>Tampilkan Lebih Sedikit</span>
-                        <ChevronUp size={20} />
-                      </>
-                    ) : (
-                      <>
-                        <span>
-                          Lihat {remainingToppings.length} Topping Lainnya
+                {group.type.startsWith("single") &&
+                  group.options.map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => handleSelect(group, option)}
+                      className={`w-full p-4 border-2 rounded-xl text-base flex justify-between items-center transition-all duration-200 ${
+                        selectedOptions[group.id] === option.id
+                          ? "border-orange-500 bg-orange-50 text-orange-500"
+                          : "border-gray-200 hover:border-orange-300"
+                      }`}
+                    >
+                      <span className="font-medium">{option.name}</span>
+                      <span className="text-sm font-medium">
+                        +{formatCurrency(option.extraPrice)}
+                      </span>
+                    </button>
+                  ))}
+                {group.type === "multiple_optional" && (
+                  <>
+                    {group.options.slice(0, 3).map((option) => (
+                      <button
+                        key={option.id}
+                        onClick={() => handleSelect(group, option)}
+                        className={`w-full p-4 border-2 rounded-xl text-base flex justify-between items-center transition-all duration-200 ${
+                          Array.isArray(selectedOptions[group.id]) &&
+                          (selectedOptions[group.id] as string[]).includes(
+                            option.id
+                          )
+                            ? "border-orange-500 bg-orange-50 text-orange-500"
+                            : "border-gray-200 hover:border-orange-300"
+                        }`}
+                      >
+                        <span className="font-medium">{option.name}</span>
+                        <span className="text-sm font-medium">
+                          +{formatCurrency(option.extraPrice)}
                         </span>
-                        <ChevronDown size={20} />
+                      </button>
+                    ))}
+                    {group.options.length > 3 && (
+                      <>
+                        {showAll[group.id] && (
+                          <div className="space-y-3 mt-3">
+                            {group.options.slice(3).map((option) => (
+                              <button
+                                key={option.id}
+                                onClick={() => handleSelect(group, option)}
+                                className={`w-full p-4 border-2 rounded-xl text-base flex justify-between items-center transition-all duration-200 ${
+                                  Array.isArray(selectedOptions[group.id]) &&
+                                  (
+                                    selectedOptions[group.id] as string[]
+                                  ).includes(option.id)
+                                    ? "border-orange-500 bg-orange-50 text-orange-500"
+                                    : "border-gray-200 hover:border-orange-300"
+                                }`}
+                              >
+                                <span className="font-medium">
+                                  {option.name}
+                                </span>
+                                <span className="text-sm font-medium">
+                                  +{formatCurrency(option.extraPrice)}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <button
+                          onClick={() =>
+                            setShowAll((prev) => ({
+                              ...prev,
+                              [group.id]: !prev[group.id],
+                            }))
+                          }
+                          className="w-full p-4 text-base text-orange-500 hover:text-orange-600 flex items-center justify-center gap-2"
+                        >
+                          {showAll[group.id] ? (
+                            <>
+                              <span>Tampilkan Lebih Sedikit</span>
+                              <ChevronUp size={20} />
+                            </>
+                          ) : (
+                            <>
+                              <span>
+                                Lihat {group.options.length - 3} Opsi Lainnya
+                              </span>
+                              <ChevronDown size={20} />
+                            </>
+                          )}
+                        </button>
                       </>
                     )}
-                  </button>
-                </>
-              )}
+                  </>
+                )}
+              </div>
             </div>
-          </div>
+          ))}
+          <div ref={bottomRef} />
         </div>
-
         <div className="sticky bottom-0 bg-white border-t p-4">
           <div className="flex justify-between items-center mb-4">
             <span className="font-bold text-lg text-gray-800">Total</span>
@@ -277,9 +300,9 @@ const OptionsPopup: React.FC<OptionsPopupProps> = ({
           </div>
           <button
             onClick={handleAddToCart}
-            disabled={spiceLevels.length > 0 && !selectedLevel}
+            disabled={!isValid()}
             className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-200 ${
-              spiceLevels.length === 0 || selectedLevel
+              isValid()
                 ? "bg-orange-500 text-white hover:bg-orange-600 active:bg-orange-700"
                 : "bg-gray-200 text-gray-500"
             }`}

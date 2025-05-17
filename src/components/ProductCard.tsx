@@ -47,10 +47,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const handleAddToCart = (
     item: MenuItem,
     quantity: number,
-    selectedOptions: {
-      level?: { label: string; value: string; extraPrice: number };
-      toppings?: { label: string; value: string; extraPrice: number }[];
-    }
+    selectedOptions: { [groupId: string]: string | string[] }
   ) => {
     addToCart({ ...item, selectedOptions }, merchantId, quantity);
   };

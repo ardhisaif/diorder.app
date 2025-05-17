@@ -19,24 +19,10 @@ export interface MenuItem {
   category: string;
   is_active: boolean;
   options?: {
-    label: string;
-    value: string;
-    category: "level" | "topping";
-    extraPrice: number;
-  }[];
+    optionGroups: MenuOptionGroup[];
+  };
   selectedOptions?: {
-    level?: {
-      label: string;
-      value: string;
-      category: "level";
-      extraPrice: number;
-    };
-    toppings?: {
-      label: string;
-      value: string;
-      category: "topping";
-      extraPrice: number;
-    }[];
+    [groupId: string]: string | string[];
   };
 }
 
@@ -55,4 +41,24 @@ export interface CustomerInfo {
   isCustomVillage?: boolean;
   customVillage?: string;
   needsNegotiation?: boolean;
+}
+
+export interface MenuOption {
+  id: string;
+  name: string;
+  extraPrice: number;
+}
+
+export type OptionGroupType =
+  | "single_required"
+  | "multiple_optional"
+  | "single_optional";
+
+export interface MenuOptionGroup {
+  id: string;
+  title: string;
+  type: OptionGroupType;
+  description?: string;
+  maxSelections?: number;
+  options: MenuOption[];
 }
