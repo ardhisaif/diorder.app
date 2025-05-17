@@ -264,10 +264,49 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     setState((prevState) => {
       const merchantItems = prevState.items[merchantId] || [];
 
+      // Transform selected options into the correct format
+      const transformedOptions = item.selectedOptions
+        ? {
+            level: (() => {
+              const singleGroup = item.options?.optionGroups.find((g) =>
+                g.type.startsWith("single")
+              );
+              if (!singleGroup) return undefined;
+              const selectedId = item.selectedOptions![singleGroup.id];
+              const selectedOption = singleGroup.options.find(
+                (o) => o.id === selectedId
+              );
+              return selectedOption
+                ? {
+                    label: selectedOption.name,
+                    value: selectedOption.id,
+                    extraPrice: selectedOption.extraPrice,
+                  }
+                : undefined;
+            })(),
+            toppings: (() => {
+              const multipleGroup = item.options?.optionGroups.find(
+                (g) => g.type === "multiple_optional"
+              );
+              if (!multipleGroup) return undefined;
+              const selectedIds = item.selectedOptions![
+                multipleGroup.id
+              ] as string[];
+              return multipleGroup.options
+                .filter((o) => selectedIds?.includes(o.id))
+                .map((o) => ({
+                  label: o.name,
+                  value: o.id,
+                  extraPrice: o.extraPrice,
+                }));
+            })(),
+          }
+        : undefined;
+
       // Create a unique identifier for the item based on its options
-      const itemKey = item.selectedOptions
-        ? `${item.id}-${item.selectedOptions.level?.value}-${
-            item.selectedOptions.toppings
+      const itemKey = transformedOptions
+        ? `${item.id}-${transformedOptions.level?.value}-${
+            transformedOptions.toppings
               ?.map((t) => t.value)
               .sort()
               .join("-") || ""
@@ -275,10 +314,10 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
         : item.id.toString();
 
       const existingItem = merchantItems.find((cartItem) => {
-        if (!item.selectedOptions && !cartItem.selectedOptions) {
+        if (!transformedOptions && !cartItem.selectedOptions) {
           return cartItem.id === item.id;
         }
-        if (item.selectedOptions && cartItem.selectedOptions) {
+        if (transformedOptions && cartItem.selectedOptions) {
           const cartItemKey = `${cartItem.id}-${
             cartItem.selectedOptions.level?.value
           }-${
@@ -307,7 +346,15 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
               ? { ...cartItem, quantity: cartItem.quantity + quantity }
               : cartItem;
           })
-        : [...merchantItems, { ...item, quantity, notes: "" }];
+        : [
+            ...merchantItems,
+            {
+              ...item,
+              selectedOptions: transformedOptions,
+              quantity,
+              notes: "",
+            },
+          ];
 
       return {
         ...prevState,
@@ -478,10 +525,23 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     return Object.values(state.items).reduce(
       (total, merchantItems) =>
         total +
-        merchantItems.reduce(
-          (merchantTotal, item) => merchantTotal + item.price * item.quantity,
-          0
-        ),
+        merchantItems.reduce((merchantTotal, item) => {
+          let itemTotal = item.price * item.quantity;
+
+          // Add level price if exists
+          if (item.selectedOptions?.level) {
+            itemTotal += item.selectedOptions.level.extraPrice * item.quantity;
+          }
+
+          // Add toppings price if exists
+          if (item.selectedOptions?.toppings) {
+            item.selectedOptions.toppings.forEach((topping) => {
+              itemTotal += topping.extraPrice * item.quantity;
+            });
+          }
+
+          return merchantTotal + itemTotal;
+        }, 0),
       0
     );
   };

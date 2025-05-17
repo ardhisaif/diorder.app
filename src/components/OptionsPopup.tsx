@@ -120,7 +120,20 @@ const OptionsPopup: React.FC<OptionsPopupProps> = ({
 
   const handleAddToCart = () => {
     if (!isValid()) return;
-    onAddToCart(item, quantity, selectedOptions);
+
+    // Transform selected options into the correct format
+    const transformedOptions: { [groupId: string]: string | string[] } = {};
+
+    if (item.options?.optionGroups) {
+      item.options.optionGroups.forEach((group) => {
+        const selected = selectedOptions[group.id];
+        if (selected) {
+          transformedOptions[group.id] = selected;
+        }
+      });
+    }
+
+    onAddToCart(item, quantity, transformedOptions);
     onClose();
   };
 
