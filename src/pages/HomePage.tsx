@@ -121,7 +121,10 @@ const HomePage: React.FC = () => {
           // Only fetch from server if needed based on timestamp or missing cache
           if (shouldFetch || !hasCachedData) {
             const { data: merchantsData, error: merchantsError } =
-              await supabase.from("merchants").select("*");
+              await supabase
+                .from("merchants")
+                .select("*")
+                .eq("is_active", true);
             const { data: menuItemsData, error: menuError } = await supabase
               .from("menu")
               .select("*")
