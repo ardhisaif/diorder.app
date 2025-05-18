@@ -216,8 +216,11 @@ const OptionsPopup: React.FC<OptionsPopupProps> = ({
           {/* Render option groups dinamis */}
           {item.options?.optionGroups?.map((group) => (
             <div className="mb-6" key={group.id}>
-              <h4 className="font-bold text-lg mb-2 text-gray-800">
+              <h4 className="font-bold text-lg mb-2 text-gray-800 flex items-center gap-1">
                 {group.title}
+                {group.type === "single_required" && (
+                  <span className="text-red-500">*</span>
+                )}
               </h4>
               {group.description && (
                 <div className="text-sm text-gray-500 mb-2">

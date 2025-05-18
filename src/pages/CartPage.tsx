@@ -170,7 +170,7 @@ const CartPage: React.FC = () => {
 
     // Format the order message for WhatsApp
     let message = `*🛍️ PESANAN BARU 🛍️*\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
 
     // Informasi Pelanggan
     message += `*👤 INFORMASI PELANGGAN*\n`;
@@ -185,7 +185,7 @@ const CartPage: React.FC = () => {
 
     // Detail Pesanan
     message += `*🍽️ DETAIL PESANAN*\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
 
     // Add orders from each merchant
     merchantsWithItems.forEach((merchant) => {
@@ -232,7 +232,7 @@ const CartPage: React.FC = () => {
 
           message += `   *Total:* ${formatCurrency(itemTotal)}\n\n`;
         });
-        message += `📊 *Subtotal* ${merchant.name}: *${formatCurrency(
+        message += `*Subtotal* ${merchant.name}: *${formatCurrency(
           merchantSubtotal
         )}*\n\n`;
       }
