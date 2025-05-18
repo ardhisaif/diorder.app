@@ -26,23 +26,6 @@ export interface MenuItem {
   };
 }
 
-export interface CartItem extends MenuItem {
-  quantity: number;
-  notes?: string;
-}
-
-export interface CustomerInfo {
-  name: string;
-  address: string;
-  notes: string;
-  phone?: string;
-  village?: string;
-  addressDetail?: string;
-  isCustomVillage?: boolean;
-  customVillage?: string;
-  needsNegotiation?: boolean;
-}
-
 export interface MenuOption {
   id: string;
   name: string;
@@ -61,4 +44,40 @@ export interface MenuOptionGroup {
   description?: string;
   maxSelections?: number;
   options: MenuOption[];
+}
+
+export interface TransformedOption {
+  label: string;
+  value: string;
+  extraPrice: number;
+}
+
+export interface TransformedOptions {
+  level?: TransformedOption;
+  toppings?: TransformedOption[];
+}
+
+export interface CartItem extends Omit<MenuItem, "selectedOptions"> {
+  quantity: number;
+  notes: string;
+  selectedOptions?: TransformedOptions;
+}
+
+export interface CustomerInfo {
+  name: string;
+  address: string;
+  notes: string;
+  phone?: string;
+  village?: string;
+  addressDetail?: string;
+  isCustomVillage?: boolean;
+  customVillage?: string;
+  needsNegotiation?: boolean;
+}
+
+export interface CartState {
+  items: {
+    [merchantId: number]: CartItem[];
+  };
+  customerInfo: CustomerInfo;
 }

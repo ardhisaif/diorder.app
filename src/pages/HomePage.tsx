@@ -7,7 +7,7 @@ import ProductCardOrig from "../components/ProductCard";
 import { ShoppingBag, WifiOff } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { useSettings } from "../context/SettingsContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { isCurrentlyOpen } from "../utils/merchantUtils";
 import supabase from "../utils/supabase/client";
 import { indexedDBService } from "../utils/indexedDB";
@@ -42,13 +42,14 @@ const HomePage: React.FC = () => {
   const [menuData, setMenuData] = useState<MenuItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isOffline, setIsOffline] = useState<boolean>(!navigator.onLine);
-  const { getItemCount, getSubtotal, calculateDeliveryFee } = useCart();
+  const { getTotalItems, getTotalPrice, calculateDeliveryFee } = useCart();
   const { isServiceOpen, refreshServiceStatus } = useSettings();
   const navigate = useNavigate();
   const { announcements, isLoading: announcementLoading } = useAnnouncements();
+  const { merchantId } = useParams<{ merchantId: string }>();
 
-  const totalItems = getItemCount();
-  const totalAmount = useMemo(() => getSubtotal(), [getSubtotal]);
+  const totalItems = getTotalItems();
+  const totalAmount = useMemo(() => getTotalPrice(), [getTotalPrice]);
 
   // Monitor online/offline status
   useEffect(() => {
@@ -108,7 +109,10 @@ const HomePage: React.FC = () => {
           }
           if (menuItemsData.data) {
             setMenuData(menuItemsData.data);
-            await indexedDBService.syncMenus(menuItemsData.data);
+            await indexedDBService.syncMenus(
+              menuItemsData.data,
+              Number(merchantId)
+            );
           }
 
           // Update timestamp
@@ -122,7 +126,7 @@ const HomePage: React.FC = () => {
     };
 
     initializeData();
-  }, []);
+  }, [merchantId]);
 
   // Filtered products by search query
   const filteredProducts = useMemo(() => {

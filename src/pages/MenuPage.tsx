@@ -28,7 +28,7 @@ const MenuPage: React.FC = () => {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isOffline, setIsOffline] = useState<boolean>(!navigator.onLine);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const { getItemCount, getSubtotal, calculateDeliveryFee } = useCart();
+  const { getTotalItems, getTotalPrice, calculateDeliveryFee } = useCart();
   const { isServiceOpen } = useSettings();
   const navigate = useNavigate();
 
@@ -222,8 +222,8 @@ const MenuPage: React.FC = () => {
     menuByCategory[item.category].push(item);
   });
 
-  const itemCount = getItemCount();
-  const totalAmount = getSubtotal();
+  const itemCount = getTotalItems();
+  const totalAmount = getTotalPrice();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {

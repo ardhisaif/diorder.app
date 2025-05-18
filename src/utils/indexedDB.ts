@@ -368,9 +368,11 @@ class IndexedDBService {
   }
 
   // Add method to sync menu items with server data
-  async syncMenus(serverMenuItems: MenuItem[]): Promise<void> {
+  async syncMenus(
+    serverMenuItems: MenuItem[],
+    merchantId: number
+  ): Promise<void> {
     const cachedMenuItems = await this.getAll("menuItems");
-    console.log("cachedMenuItems", cachedMenuItems);
     return new Promise((resolve, reject) => {
       try {
         // Find menu items that exist in cache but not in server data (deleted items)
@@ -398,6 +400,61 @@ class IndexedDBService {
       } catch (error) {
         reject(error);
       }
+    });
+  }
+
+  async saveCart(items: { [merchantId: number]: CartItem[] }): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const store = this.getStore("cartItems");
+      const request = store.clear();
+
+      request.onerror = () => {
+        reject(request.error);
+      };
+
+      request.onsuccess = () => {
+        const savePromises = Object.entries(items).map(
+          ([merchantIdStr, merchantItems]) => {
+            return new Promise<void>((resolveItem, rejectItem) => {
+              const saveRequest = store.add({
+                merchantId: Number(merchantIdStr),
+                items: merchantItems,
+              });
+
+              saveRequest.onerror = () => {
+                rejectItem(saveRequest.error);
+              };
+
+              saveRequest.onsuccess = () => {
+                resolveItem();
+              };
+            });
+          }
+        );
+
+        Promise.all(savePromises)
+          .then(() => resolve())
+          .catch((error) => reject(error));
+      };
+    });
+  }
+
+  async loadCart(): Promise<{ [merchantId: number]: CartItem[] }> {
+    return new Promise((resolve, reject) => {
+      const store = this.getStore("cartItems");
+      const request = store.getAll();
+
+      request.onerror = () => {
+        reject(request.error);
+      };
+
+      request.onsuccess = () => {
+        const items = request.result.reduce((acc, curr) => {
+          acc[curr.merchantId] = curr.items;
+          return acc;
+        }, {} as { [merchantId: number]: CartItem[] });
+        resolve(items);
+      };
     });
   }
 }

@@ -55,7 +55,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
   // Handler plus
   const handlePlus = () => {
     if (!isOpen) return;
-    if (item.options && item.options.length > 0) {
+    if (
+      item.options &&
+      item.options.optionGroups &&
+      item.options.optionGroups.length > 0
+    ) {
       setShowOptions(true);
     } else {
       addToCart(item, merchantId);
@@ -65,7 +69,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
   // Handler minus
   const handleMinus = () => {
     if (!isOpen || totalQuantity === 0) return;
-    if (item.options && item.options.length > 0) {
+    if (
+      item.options &&
+      item.options.optionGroups &&
+      item.options.optionGroups.length > 0
+    ) {
       if (allVariants.length === 1) {
         removeFromCart(allVariants[0], merchantId);
       } else {

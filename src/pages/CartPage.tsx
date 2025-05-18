@@ -49,7 +49,7 @@ const VILLAGES = Object.entries(VILLAGE_SHIPPING_COSTS)
 const CartPage: React.FC = () => {
   const {
     getMerchantItems,
-    getMerchantTotal,
+    getMerchantTotalPrice,
     customerInfo,
     updateCustomerInfo,
     clearCart,
@@ -159,7 +159,7 @@ const CartPage: React.FC = () => {
 
     const subtotal = merchantsWithItems.reduce((total, merchant) => {
       if (isCurrentlyOpen(merchant.openingHours)) {
-        return total + getMerchantTotal(merchant.id);
+        return total + getMerchantTotalPrice(merchant.id);
       }
       return total;
     }, 0);
@@ -190,7 +190,7 @@ const CartPage: React.FC = () => {
     merchantsWithItems.forEach((merchant) => {
       if (isCurrentlyOpen(merchant.openingHours)) {
         const items = getMerchantItems(merchant.id);
-        const merchantSubtotal = getMerchantTotal(merchant.id);
+        const merchantSubtotal = getMerchantTotalPrice(merchant.id);
 
         message += `*${merchant.name}*\n`;
         items.forEach((item) => {
@@ -511,7 +511,7 @@ const CartPage: React.FC = () => {
 
   const renderMerchantItems = (merchant: Merchant) => {
     const items = getMerchantItems(merchant.id);
-    const merchantSubtotal = getMerchantTotal(merchant.id);
+    const merchantSubtotal = getMerchantTotalPrice(merchant.id);
     const isOpen = isCurrentlyOpen(merchant.openingHours);
 
     return (
@@ -563,7 +563,7 @@ const CartPage: React.FC = () => {
   const cartEmpty = merchantsWithItems.length === 0;
   const subtotal = merchantsWithItems.reduce((total, merchant) => {
     if (isCurrentlyOpen(merchant.openingHours)) {
-      return total + getMerchantTotal(merchant.id);
+      return total + getMerchantTotalPrice(merchant.id);
     }
     return total;
   }, 0);
