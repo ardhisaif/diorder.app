@@ -23,7 +23,6 @@ const OptionsPopup: React.FC<OptionsPopupProps> = ({
     [groupId: string]: string | string[];
   }>({});
   const [showAll, setShowAll] = useState<{ [groupId: string]: boolean }>({});
-  const [hasScrolled, setHasScrolled] = useState(false);
   const bottomRef = React.useRef<HTMLDivElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
 
@@ -42,16 +41,6 @@ const OptionsPopup: React.FC<OptionsPopupProps> = ({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [onClose]);
-
-  // Auto-scroll to bottom after first group selection (optional)
-  useEffect(() => {
-    if (!hasScrolled && Object.keys(selectedOptions).length > 0) {
-      setTimeout(() => {
-        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-        setHasScrolled(true);
-      }, 200);
-    }
-  }, [selectedOptions, hasScrolled]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
