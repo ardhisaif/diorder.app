@@ -10,7 +10,7 @@ interface CartItemProps {
 }
 
 const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
-  const { updateQuantity, updateItemNotes } = useCart();
+  const { updateQuantity, updateNotes } = useCart();
   const [notes, setNotes] = useState(item.notes || "");
 
   const formatCurrency = (amount: number) => {
@@ -23,6 +23,11 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
 
   const calculateItemTotal = () => {
     let total = item.price * item.quantity;
+
+    // Add variant price if exists
+    if (item.selectedOptions?.variant) {
+      total += item.selectedOptions.variant.extraPrice * item.quantity;
+    }
 
     // Add level price if exists
     if (item.selectedOptions?.level) {
@@ -49,6 +54,16 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
         <span>{formatCurrency(item.price)}</span>
       </div>
     );
+
+    // Variant price if exists
+    if (item.selectedOptions?.variant) {
+      breakdown.push(
+        <div key="variant" className="flex justify-between text-sm">
+          <span>{item.selectedOptions.variant.label}</span>
+          <span>{formatCurrency(item.selectedOptions.variant.extraPrice)}</span>
+        </div>
+      );
+    }
 
     // Level price if exists
     if (item.selectedOptions?.level) {
@@ -78,6 +93,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
     // Subtotal per item
     const subtotalPerItem =
       item.price +
+      (item.selectedOptions?.variant?.extraPrice || 0) +
       (item.selectedOptions?.level?.extraPrice || 0) +
       (item.selectedOptions?.toppings?.reduce(
         (sum, t) => sum + t.extraPrice,
@@ -102,6 +118,10 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
       </div>
     );
 
+    // Log untuk debugging
+    // console.log("Cart Item:", item);
+    // console.log("Selected Options:", item.selectedOptions);
+
     return breakdown;
   };
 
@@ -117,7 +137,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
           <h3 className="font-bold text-lg">{item.name}</h3>
           {item.selectedOptions?.level && (
             <p className="text-gray-600 text-base">
-              Level: {item.selectedOptions.level.label}
+              {item.selectedOptions.level.label}
             </p>
           )}
           {item.selectedOptions?.toppings &&
@@ -132,7 +152,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
               value={notes}
               onChange={(e) => {
                 setNotes(e.target.value);
-                updateItemNotes(item.id, e.target.value, merchantId);
+                updateNotes(item, merchantId, e.target.value);
               }}
               placeholder="Tambahkan catatan (opsional)"
               className="w-full p-2 border rounded-lg text-base"
@@ -143,7 +163,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
           <div className="flex justify-end items-center mt-4">
             <button
               onClick={() =>
-                updateQuantity(item.id, item.quantity - 1, merchantId)
+                updateQuantity(item, merchantId, item.quantity - 1)
               }
               className="w-8 h-8 flex items-center justify-center rounded-lg bg-orange-500 text-white active:bg-orange-600"
               aria-label="Kurangi jumlah"
@@ -153,7 +173,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
             <span className="mx-4 font-medium text-xl">{item.quantity}</span>
             <button
               onClick={() =>
-                updateQuantity(item.id, item.quantity + 1, merchantId)
+                updateQuantity(item, merchantId, item.quantity + 1)
               }
               className="w-8 h-8 flex items-center justify-center rounded-lg bg-orange-500 text-white active:bg-orange-600"
               aria-label="Tambah jumlah"

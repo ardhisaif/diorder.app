@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { MenuItem } from "../types";
+import React, { useState, useEffect, useRef } from "react";
+import { MenuItem, CartItem } from "../types";
 import { Plus, Minus, Info, X } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { Link } from "react-router-dom";
@@ -22,6 +22,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const { addToCart, removeFromCart, getMerchantItems } = useCart();
   const [showOptions, setShowOptions] = useState(false);
   const [showVariantPopup, setShowVariantPopup] = useState(false);
+  const popupRef = useRef<HTMLDivElement>(null);
 
   // Helper: semua varian dari menu ini di cart (khusus merchant ini)
   const allVariants = getMerchantItems(merchantId).filter(
@@ -36,6 +37,26 @@ const ProductCard: React.FC<ProductCardProps> = ({
     }
   }, [showVariantPopup, totalQuantity]);
 
+  // Handle click outside for variant popup
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        popupRef.current &&
+        !popupRef.current.contains(event.target as Node)
+      ) {
+        setShowVariantPopup(false);
+      }
+    };
+
+    if (showVariantPopup) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showVariantPopup]);
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -49,13 +70,23 @@ const ProductCard: React.FC<ProductCardProps> = ({
     quantity: number,
     selectedOptions: { [groupId: string]: string | string[] }
   ) => {
-    addToCart({ ...item, selectedOptions }, merchantId, quantity);
+    if (!selectedOptions) return;
+    // Create a new MenuItem with selectedOptions
+    const menuItem: MenuItem = {
+      ...item,
+      selectedOptions,
+    };
+    addToCart(menuItem, merchantId, quantity);
   };
 
   // Handler plus
   const handlePlus = () => {
     if (!isOpen) return;
-    if (item.options && item.options.length > 0) {
+    if (
+      item.options &&
+      item.options.optionGroups &&
+      item.options.optionGroups.length > 0
+    ) {
       setShowOptions(true);
     } else {
       addToCart(item, merchantId);
@@ -65,24 +96,51 @@ const ProductCard: React.FC<ProductCardProps> = ({
   // Handler minus
   const handleMinus = () => {
     if (!isOpen || totalQuantity === 0) return;
-    if (item.options && item.options.length > 0) {
+    if (
+      item.options &&
+      item.options.optionGroups &&
+      item.options.optionGroups.length > 0
+    ) {
       if (allVariants.length === 1) {
         removeFromCart(allVariants[0], merchantId);
       } else {
         setShowVariantPopup(true);
       }
     } else {
-      removeFromCart(item, merchantId);
+      // Convert MenuItem to CartItem for removeFromCart
+      const cartItem: CartItem = {
+        ...item,
+        quantity: 1,
+        notes: "",
+        selectedOptions: undefined,
+      };
+      removeFromCart(cartItem, merchantId);
     }
   };
 
   // Handler plus variant
-  const handlePlusVariant = (variant: MenuItem) => {
-    addToCart(variant, merchantId);
+  const handlePlusVariant = (variant: CartItem) => {
+    // Convert CartItem back to MenuItem for addToCart
+    const menuItem: MenuItem = {
+      ...item,
+      selectedOptions: {
+        // Convert TransformedOptions back to MenuItem selectedOptions format
+        ...(variant.selectedOptions?.level && {
+          [item.options?.optionGroups.find((g) => g.type === "single_required")
+            ?.id || ""]: variant.selectedOptions.level.value,
+        }),
+        ...(variant.selectedOptions?.toppings && {
+          [item.options?.optionGroups.find(
+            (g) => g.type === "multiple_optional"
+          )?.id || ""]: variant.selectedOptions.toppings.map((t) => t.value),
+        }),
+      },
+    };
+    addToCart(menuItem, merchantId);
   };
 
   // Handler minus variant
-  const handleMinusVariant = (variant: MenuItem) => {
+  const handleMinusVariant = (variant: CartItem) => {
     removeFromCart(variant, merchantId);
   };
 
@@ -171,15 +229,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
       {showVariantPopup && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div
-            ref={(el) => {
-              if (el) {
-                el.addEventListener("mousedown", (e) => {
-                  if (e.target === el) {
-                    setShowVariantPopup(false);
-                  }
-                });
-              }
-            }}
+            ref={popupRef}
             className="bg-white rounded-lg p-4 w-[90%] max-w-md max-h-[80vh] overflow-y-auto relative"
           >
             <div className="sticky top-0 bg-white z-10 pb-4 border-b">
@@ -238,7 +288,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                             <span>
                               | Topping:{" "}
                               {variant.selectedOptions.toppings
-                                .map((t: { label: string }) => t.label)
+                                .map((t) => t.label)
                                 .join(", ")}
                             </span>
                           )}

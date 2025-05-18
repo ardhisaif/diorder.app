@@ -7,17 +7,12 @@ import ProductCardOrig from "../components/ProductCard";
 import { ShoppingBag, WifiOff } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { useSettings } from "../context/SettingsContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { isCurrentlyOpen } from "../utils/merchantUtils";
 import supabase from "../utils/supabase/client";
 import { indexedDBService } from "../utils/indexedDB";
 import ServiceClosedBanner from "../components/ServiceClosedBanner";
 import { MerchantSkeleton, ProductSkeleton } from "../components/Skeletons";
-import {
-  shouldFetchFreshData,
-  updateStoredTimestamp,
-  TIMESTAMP_KEYS,
-} from "../utils/cacheUtils";
 import { useAnnouncements } from "../context/AnnouncementContext";
 import AnnouncementBanner from "../components/AnnouncementBanner";
 // import { getLastFetchTime, updateLastFetchTime } from "../utils/cacheUtils";
@@ -47,13 +42,14 @@ const HomePage: React.FC = () => {
   const [menuData, setMenuData] = useState<MenuItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isOffline, setIsOffline] = useState<boolean>(!navigator.onLine);
-  const { getItemCount, getSubtotal, calculateDeliveryFee } = useCart();
+  const { getTotalItems, getTotalPrice, calculateDeliveryFee } = useCart();
   const { isServiceOpen, refreshServiceStatus } = useSettings();
   const navigate = useNavigate();
   const { announcements, isLoading: announcementLoading } = useAnnouncements();
+  const { merchantId } = useParams<{ merchantId: string }>();
 
-  const totalItems = getItemCount();
-  const totalAmount = useMemo(() => getSubtotal(), [getSubtotal]);
+  const totalItems = getTotalItems();
+  const totalAmount = useMemo(() => getTotalPrice(), [getTotalPrice]);
 
   // Monitor online/offline status
   useEffect(() => {
@@ -75,15 +71,13 @@ const HomePage: React.FC = () => {
         setIsLoading(true);
         await indexedDBService.initDB();
 
-        // Get all data from cache
-        const cachedMerchants = await indexedDBService.getAll("merchantInfo");
-        const cachedMenuItems = await indexedDBService.getAll("menuItems");
+        // Get cached data
+        const [cachedMerchants, cachedMenuItems] = await Promise.all([
+          indexedDBService.getAll("merchantInfo"),
+          indexedDBService.getAll("menuItems"),
+        ]);
 
-        // Check if we have sufficient data in the cache
-        const hasCachedData =
-          cachedMerchants.length > 0 && cachedMenuItems.length > 0;
-
-        // Render cache data directly
+        // Show cached data immediately
         if (cachedMerchants.length > 0) {
           setMerchants(cachedMerchants);
         }
@@ -91,80 +85,48 @@ const HomePage: React.FC = () => {
           setMenuData(cachedMenuItems);
         }
 
-        // If we have complete data, reduce loading time
-        if (hasCachedData) {
-          setIsLoading(false);
-        }
-
-        // Check if we should do a timestamp check
+        // Check if we need fresh data
         const lastFetchTime = localStorage.getItem(HOME_LAST_FETCH_KEY);
         const shouldCheckTimestamp =
           !lastFetchTime || Date.now() - Number(lastFetchTime) > CACHE_DURATION;
 
-        // Only check for updates if we're online and it's time to check or no cached data
-        if (navigator.onLine && (shouldCheckTimestamp || !hasCachedData)) {
-          // Do a lightweight check for updated_at timestamp before fetching full data
-          const { data: settingsData } = await supabase
-            .from("settings")
-            .select("updated_at")
-            .single();
+        if (
+          navigator.onLine &&
+          (shouldCheckTimestamp ||
+            !cachedMerchants.length ||
+            !cachedMenuItems.length)
+        ) {
+          // Fetch fresh data
+          const [merchantsData, menuItemsData] = await Promise.all([
+            supabase.from("merchants").select("*").eq("is_active", true),
+            supabase.from("menu").select("*").eq("is_active", true),
+          ]);
 
-          const serverTimestamp = settingsData?.updated_at;
-          const shouldFetch = shouldFetchFreshData(
-            TIMESTAMP_KEYS.SETTINGS,
-            serverTimestamp
-          );
-
-          // Update the last fetch time regardless of whether we fetch or not
-          localStorage.setItem(HOME_LAST_FETCH_KEY, Date.now().toString());
-
-          // Only fetch from server if needed based on timestamp or missing cache
-          if (shouldFetch || !hasCachedData) {
-            const { data: merchantsData, error: merchantsError } =
-              await supabase.from("merchants").select("*");
-            const { data: menuItemsData, error: menuError } = await supabase
-              .from("menu")
-              .select("*")
-              .eq("is_active", true);
-
-            if (merchantsError || menuError) {
-              if (!hasCachedData) {
-                setIsLoading(false);
-              }
-              return;
-            }
-
-            // Update state with fresh data
-            setMerchants(merchantsData || []);
-            setMenuData(menuItemsData || []);
-
-            // Update cache in IndexedDB
-            if (merchantsData) {
-              for (const merchant of merchantsData) {
-                await indexedDBService.update("merchantInfo", merchant);
-              }
-            }
-            if (menuItemsData) {
-              for (const menuItem of menuItemsData) {
-                await indexedDBService.update("menuItems", menuItem);
-              }
-            }
-
-            // Store the latest timestamp for future comparison
-            if (serverTimestamp) {
-              updateStoredTimestamp(TIMESTAMP_KEYS.SETTINGS, serverTimestamp);
-            }
+          // Update state and cache atomically
+          if (merchantsData.data) {
+            setMerchants(merchantsData.data);
+            await indexedDBService.syncMerchants(merchantsData.data);
           }
+          if (menuItemsData.data) {
+            setMenuData(menuItemsData.data);
+            await indexedDBService.syncMenus(
+              menuItemsData.data,
+              Number(merchantId)
+            );
+          }
+
+          // Update timestamp
+          localStorage.setItem(HOME_LAST_FETCH_KEY, Date.now().toString());
         }
-      } catch {
-        // console.error("Error initializing data:", error);
+      } catch (error) {
+        console.error("Error initializing data:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
     initializeData();
-  }, []);
+  }, [merchantId]);
 
   // Filtered products by search query
   const filteredProducts = useMemo(() => {

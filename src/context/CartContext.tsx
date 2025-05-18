@@ -5,10 +5,13 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { CartItem, CustomerInfo, MenuItem } from "../types";
-import supabase from "../utils/supabase/client";
-import { isCurrentlyOpen } from "../utils/merchantUtils";
-import { Merchant } from "../types";
+import {
+  CartItem,
+  CustomerInfo,
+  MenuItem,
+  TransformedOptions,
+  CartState,
+} from "../types";
 import { indexedDBService } from "../utils/indexedDB";
 import CustomAlert from "../components/CustomAlert";
 
@@ -16,34 +19,25 @@ import CustomAlert from "../components/CustomAlert";
 const CUSTOMER_INFO_STORAGE_KEY = "diorder_customer_info";
 
 interface CartContextType {
-  cartItems: CartItem[];
+  items: { [merchantId: number]: CartItem[] };
+  customerInfo: CustomerInfo;
   addToCart: (item: MenuItem, merchantId: number, quantity?: number) => void;
-  removeFromCart: (item: MenuItem, merchantId: number) => void;
+  removeFromCart: (item: CartItem, merchantId: number) => void;
   updateQuantity: (
-    itemId: number,
-    quantity: number,
-    merchantId: number
+    item: CartItem,
+    merchantId: number,
+    quantity: number
   ) => void;
-  updateItemNotes: (itemId: number, notes: string, merchantId: number) => void;
+  updateNotes: (item: CartItem, merchantId: number, notes: string) => void;
   clearCart: () => void;
-  clearMerchantCart: (merchantId: number) => void;
-  customerInfo: CustomerInfo;
-  updateCustomerInfo: (info: CustomerInfo) => void;
-  getCartTotal: () => number;
-  getMerchantTotal: (merchantId: number) => number;
-  getItemCount: () => number;
   getMerchantItems: (merchantId: number) => CartItem[];
-  useMerchantInfo: (merchantId: number) => { name: string } | null;
-  getItemQuantity: (itemId: number) => number;
-  getSubtotal: () => number;
+  getTotalItems: () => number;
+  getTotalPrice: () => number;
+  getMerchantTotalPrice: (merchantId: number) => number;
+  setCustomerInfo: (info: CustomerInfo) => void;
+  saveCart: () => Promise<void>;
+  loadCart: () => Promise<void>;
   calculateDeliveryFee: () => number;
-}
-
-interface CartState {
-  items: {
-    [merchantId: number]: CartItem[];
-  };
-  customerInfo: CustomerInfo;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -103,7 +97,7 @@ const VILLAGE_SHIPPING_COSTS: { [key: string]: number } = {
 export const CartProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const [state, setState] = useState<CartState>(getInitialState);
+  const [cartState, setCartState] = useState<CartState>(getInitialState);
   const [isClearingCart, setIsClearingCart] = useState(false);
   const [isDBReady, setIsDBReady] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
@@ -127,7 +121,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
             return acc;
           }, {} as CartState["items"]);
 
-          setState((prev) => ({
+          setCartState((prev) => ({
             ...prev,
             items: groupedItems,
           }));
@@ -147,7 +141,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     const syncToIndexedDB = async () => {
       try {
         // Get all current cart items
-        const allItems = Object.entries(state.items).flatMap(
+        const allItems = Object.entries(cartState.items).flatMap(
           ([merchantId, items]) =>
             items.map((item) => ({
               ...item,
@@ -155,6 +149,13 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
               // Ensure selectedOptions is properly structured
               selectedOptions: item.selectedOptions
                 ? {
+                    variant: item.selectedOptions.variant
+                      ? {
+                          label: item.selectedOptions.variant.label,
+                          value: item.selectedOptions.variant.value,
+                          extraPrice: item.selectedOptions.variant.extraPrice,
+                        }
+                      : undefined,
                     level: item.selectedOptions.level
                       ? {
                           label: item.selectedOptions.level.label,
@@ -177,31 +178,17 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
 
         // Add all current items to IndexedDB
         for (const item of allItems) {
-          await indexedDBService.addToCart({
-            ...item,
-            selectedOptions: item.selectedOptions
-              ? {
-                  level: item.selectedOptions.level
-                    ? {
-                        ...item.selectedOptions.level,
-                        category: "level",
-                      }
-                    : undefined,
-                  toppings: item.selectedOptions.toppings?.map((topping) => ({
-                    ...topping,
-                    category: "topping",
-                  })),
-                }
-              : undefined,
-          });
+          await indexedDBService.addToCart(item);
         }
+
+        console.log("Cart synced to IndexedDB:", allItems);
       } catch (error) {
         console.error("Error syncing to IndexedDB:", error);
       }
     };
 
     syncToIndexedDB();
-  }, [state.items, isDBReady, isClearingCart]);
+  }, [cartState.items, isDBReady, isClearingCart]);
 
   // Effect to save customer info to localStorage whenever it changes
   useEffect(() => {
@@ -209,25 +196,25 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
       try {
         localStorage.setItem(
           CUSTOMER_INFO_STORAGE_KEY,
-          JSON.stringify(state.customerInfo)
+          JSON.stringify(cartState.customerInfo)
         );
       } catch (error) {
         console.error("Error saving customer info to localStorage:", error);
       }
     }
-  }, [state.customerInfo]);
+  }, [cartState.customerInfo]);
 
   const calculateDeliveryFee = () => {
     // Jika desa kustom dan perlu negosiasi, return -1 sebagai penanda untuk "Ongkir Nego"
     if (
-      state.customerInfo.isCustomVillage &&
-      state.customerInfo.needsNegotiation
+      cartState.customerInfo.isCustomVillage &&
+      cartState.customerInfo.needsNegotiation
     ) {
       return -1; // Menggunakan -1 sebagai penanda khusus
     }
 
     // Get the village from customer info
-    const village = state.customerInfo.village;
+    const village = cartState.customerInfo.village;
 
     // If village exists in our mapping, return its shipping cost
     if (village && village in VILLAGE_SHIPPING_COSTS) {
@@ -243,15 +230,16 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     merchantId: number,
     quantity: number = 1
   ) => {
-    const currentSubtotal = getSubtotal();
+    // console.log("Adding to cart:", { item, merchantId, quantity });
+
+    const currentSubtotal = getTotalPrice();
     const newSubtotal = currentSubtotal + item.price * quantity;
 
     // Check if adding these items would exceed 100k for the first time
-    // Only show alert if not a custom village
     if (
       currentSubtotal <= 100000 &&
       newSubtotal > 100000 &&
-      !state.customerInfo.isCustomVillage
+      !cartState.customerInfo.isCustomVillage
     ) {
       const newDeliveryFee = calculateDeliveryFee();
       const message = `Total pesanan Anda telah melebihi Rp 100.000. Untuk keamanan pengiriman, ongkir akan bertambah Rp ${newDeliveryFee.toLocaleString(
@@ -261,66 +249,130 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
       setShowAlert(true);
     }
 
-    setState((prevState) => {
+    setCartState((prevState) => {
       const merchantItems = prevState.items[merchantId] || [];
 
-      // Create a unique identifier for the item based on its options
-      const itemKey = item.selectedOptions
-        ? `${item.id}-${item.selectedOptions.level?.value}-${
-            item.selectedOptions.toppings
-              ?.map((t) => t.value)
-              .sort()
-              .join("-") || ""
-          }`
-        : item.id.toString();
+      // Transform selected options into the correct format
+      const transformedOptions: TransformedOptions | undefined =
+        item.selectedOptions
+          ? {
+              variant: (() => {
+                // Find the variant option group (first single_required group)
+                const variantGroup = item.options?.optionGroups.find(
+                  (g) => g.type === "single_required"
+                );
+                // console.log("Variant group:", variantGroup);
+                if (!variantGroup) return undefined;
+                const selectedId = item.selectedOptions![
+                  variantGroup.id
+                ] as string;
+                // console.log("Selected variant ID:", selectedId);
+                if (!selectedId) return undefined;
+                const selectedOption = variantGroup.options.find(
+                  (o) => o.id === selectedId
+                );
+                // console.log("Selected variant option:", selectedOption);
+                return selectedOption
+                  ? {
+                      label: selectedOption.name,
+                      value: selectedOption.id,
+                      extraPrice: selectedOption.extraPrice,
+                    }
+                  : undefined;
+              })(),
+              level: (() => {
+                // Find the spice level option group (second single_required group)
+                const spiceLevelGroup = item.options?.optionGroups.find(
+                  (g, index) => g.type === "single_required" && index > 0
+                );
+                // console.log("Spice level group:", spiceLevelGroup);
+                if (!spiceLevelGroup) return undefined;
+                const selectedId = item.selectedOptions![
+                  spiceLevelGroup.id
+                ] as string;
+                // console.log("Selected level ID:", selectedId);
+                if (!selectedId) return undefined;
+                const selectedOption = spiceLevelGroup.options.find(
+                  (o) => o.id === selectedId
+                );
+                // console.log("Selected level option:", selectedOption);
+                return selectedOption
+                  ? {
+                      label: selectedOption.name,
+                      value: selectedOption.id,
+                      extraPrice: selectedOption.extraPrice,
+                    }
+                  : undefined;
+              })(),
+              toppings: (() => {
+                const multipleGroup = item.options?.optionGroups.find(
+                  (g) => g.type === "multiple_optional"
+                );
+                // console.log("Toppings group:", multipleGroup);
+                if (!multipleGroup) return undefined;
+                const selectedIds = item.selectedOptions![
+                  multipleGroup.id
+                ] as string[];
+                // console.log("Selected topping IDs:", selectedIds);
+                if (!selectedIds) return undefined;
+                return multipleGroup.options
+                  .filter((o) => selectedIds.includes(o.id))
+                  .map((o) => ({
+                    label: o.name,
+                    value: o.id,
+                    extraPrice: o.extraPrice,
+                  }));
+              })(),
+            }
+          : undefined;
 
-      const existingItem = merchantItems.find((cartItem) => {
-        if (!item.selectedOptions && !cartItem.selectedOptions) {
-          return cartItem.id === item.id;
-        }
-        if (item.selectedOptions && cartItem.selectedOptions) {
-          const cartItemKey = `${cartItem.id}-${
-            cartItem.selectedOptions.level?.value
-          }-${
-            cartItem.selectedOptions.toppings
-              ?.map((t) => t.value)
-              .sort()
-              .join("-") || ""
-          }`;
-          return cartItemKey === itemKey;
-        }
-        return false;
-      });
+      // console.log("Transformed options:", transformedOptions);
 
-      const updatedMerchantItems = existingItem
-        ? merchantItems.map((cartItem) => {
-            const cartItemKey = cartItem.selectedOptions
-              ? `${cartItem.id}-${cartItem.selectedOptions.level?.value}-${
-                  cartItem.selectedOptions.toppings
-                    ?.map((t) => t.value)
-                    .sort()
-                    .join("-") || ""
-                }`
-              : cartItem.id.toString();
-
-            return cartItemKey === itemKey
-              ? { ...cartItem, quantity: cartItem.quantity + quantity }
-              : cartItem;
-          })
-        : [...merchantItems, { ...item, quantity, notes: "" }];
-
-      return {
-        ...prevState,
-        items: {
-          ...prevState.items,
-          [merchantId]: updatedMerchantItems,
-        },
+      // Create new cart item with transformed options
+      const newItem: CartItem = {
+        ...item,
+        quantity,
+        notes: "",
+        selectedOptions: transformedOptions,
       };
+
+      // Find existing item with same options
+      const existingItemIndex = merchantItems.findIndex(
+        (ci) =>
+          ci.id === newItem.id &&
+          JSON.stringify(ci.selectedOptions) ===
+            JSON.stringify(newItem.selectedOptions)
+      );
+
+      if (existingItemIndex !== -1) {
+        // Update existing item
+        const updatedItems = [...merchantItems];
+        updatedItems[existingItemIndex] = {
+          ...updatedItems[existingItemIndex],
+          quantity: updatedItems[existingItemIndex].quantity + quantity,
+        };
+        return {
+          ...prevState,
+          items: {
+            ...prevState.items,
+            [merchantId]: updatedItems,
+          },
+        };
+      } else {
+        // Add new item
+        return {
+          ...prevState,
+          items: {
+            ...prevState.items,
+            [merchantId]: [...merchantItems, newItem],
+          },
+        };
+      }
     });
   };
 
-  const removeFromCart = (item: MenuItem, merchantId: number) => {
-    setState((prevState) => {
+  const removeFromCart = (item: CartItem, merchantId: number) => {
+    setCartState((prevState) => {
       const merchantItems = prevState.items[merchantId] || [];
       // Create a unique identifier for the item based on its options
       const itemKey = item.selectedOptions
@@ -363,22 +415,19 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const updateQuantity = (
-    itemId: number,
-    quantity: number,
-    merchantId: number
+    item: CartItem,
+    merchantId: number,
+    quantity: number
   ) => {
     if (quantity <= 0) {
-      removeFromCart(
-        state.items[merchantId].find((item) => item.id === itemId)!,
-        merchantId
-      );
+      removeFromCart(item, merchantId);
       return;
     }
 
-    setState((prevState) => {
+    setCartState((prevState) => {
       const merchantItems = prevState.items[merchantId] || [];
-      const updatedMerchantItems = merchantItems.map((item) =>
-        item.id === itemId ? { ...item, quantity } : item
+      const updatedMerchantItems = merchantItems.map((cartItem) =>
+        cartItem.id === item.id ? { ...cartItem, quantity } : cartItem
       );
 
       return {
@@ -391,15 +440,11 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     });
   };
 
-  const updateItemNotes = (
-    itemId: number,
-    notes: string,
-    merchantId: number
-  ) => {
-    setState((prevState) => {
+  const updateNotes = (item: CartItem, merchantId: number, notes: string) => {
+    setCartState((prevState) => {
       const merchantItems = prevState.items[merchantId] || [];
-      const updatedMerchantItems = merchantItems.map((item) =>
-        item.id === itemId ? { ...item, notes } : item
+      const updatedMerchantItems = merchantItems.map((cartItem) =>
+        cartItem.id === item.id ? { ...cartItem, notes } : cartItem
       );
 
       return {
@@ -415,7 +460,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
   // Modify the clearCart function to properly handle IndexedDB
   const clearCart = async () => {
     setIsClearingCart(true);
-    setState((prevState) => ({
+    setCartState((prevState) => ({
       ...prevState,
       items: {},
     }));
@@ -447,49 +492,58 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     }
   };
 
-  const clearMerchantCart = (merchantId: number) => {
-    setState((prevState) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { [merchantId]: _, ...remainingItems } = prevState.items;
-      return {
-        ...prevState,
-        items: remainingItems,
-      };
-    });
+  const getMerchantItems = (merchantId: number) => {
+    return cartState.items[merchantId] || [];
   };
 
-  const updateCustomerInfo = (info: CustomerInfo) => {
-    setState((prevState) => ({
-      ...prevState,
-      customerInfo: info,
-    }));
-
-    // This is redundant due to the useEffect above, but adding as a safeguard
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem(CUSTOMER_INFO_STORAGE_KEY, JSON.stringify(info));
-      } catch (error) {
-        console.error("Error saving customer info to localStorage:", error);
-      }
-    }
-  };
-
-  const getCartTotal = () => {
-    return Object.values(state.items).reduce(
+  const getTotalItems = () => {
+    return Object.values(cartState.items).reduce(
       (total, merchantItems) =>
-        total +
-        merchantItems.reduce(
-          (merchantTotal, item) => merchantTotal + item.price * item.quantity,
-          0
-        ),
+        total + merchantItems.reduce((count, item) => count + item.quantity, 0),
       0
     );
   };
 
-  const getMerchantTotal = (merchantId: number) => {
-    const merchantItems = state.items[merchantId] || [];
+  const getTotalPrice = () => {
+    return Object.values(cartState.items).reduce(
+      (total, merchantItems) =>
+        total +
+        merchantItems.reduce((merchantTotal, item) => {
+          let itemTotal = item.price * item.quantity;
+
+          // Add variant price if exists
+          if (item.selectedOptions?.variant) {
+            itemTotal +=
+              item.selectedOptions.variant.extraPrice * item.quantity;
+          }
+
+          // Add level price if exists
+          if (item.selectedOptions?.level) {
+            itemTotal += item.selectedOptions.level.extraPrice * item.quantity;
+          }
+
+          // Add toppings price if exists
+          if (item.selectedOptions?.toppings) {
+            item.selectedOptions.toppings.forEach((topping) => {
+              itemTotal += topping.extraPrice * item.quantity;
+            });
+          }
+
+          return merchantTotal + itemTotal;
+        }, 0),
+      0
+    );
+  };
+
+  const getMerchantTotalPrice = (merchantId: number) => {
+    const merchantItems = cartState.items[merchantId] || [];
     return merchantItems.reduce((total, item) => {
       let itemTotal = item.price * item.quantity;
+
+      // Add variant price if exists
+      if (item.selectedOptions?.variant) {
+        itemTotal += item.selectedOptions.variant.extraPrice * item.quantity;
+      }
 
       // Add level price if exists
       if (item.selectedOptions?.level) {
@@ -507,102 +561,59 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     }, 0);
   };
 
-  const getItemCount = () => {
-    return Object.values(state.items).reduce(
-      (total, merchantItems) =>
-        total + merchantItems.reduce((count, item) => count + item.quantity, 0),
-      0
-    );
-  };
+  const setCustomerInfo = (info: CustomerInfo) => {
+    setCartState((prevState) => ({
+      ...prevState,
+      customerInfo: info,
+    }));
 
-  const getMerchantItems = (merchantId: number) => {
-    return state.items[merchantId] || [];
-  };
-
-  const useMerchantInfo = (merchantId: number) => {
-    const [merchantInfo, setMerchantInfo] = useState<{ name: string } | null>(
-      null
-    );
-
-    useEffect(() => {
-      const fetchMerchant = async () => {
-        const { data, error } = await supabase
-          .from("merchants")
-          .select("name")
-          .eq("id", merchantId)
-          .single();
-
-        if (error) {
-          // console.error("Error fetching merchant info:", error);
-          setMerchantInfo(null);
-        } else {
-          setMerchantInfo(data);
-        }
-      };
-
-      if (navigator.onLine) fetchMerchant();
-    }, [merchantId]);
-
-    return merchantInfo;
-  };
-
-  const getItemQuantity = (itemId: number) => {
-    for (const merchantItems of Object.values(state.items)) {
-      const item = merchantItems.find((item) => item.id === itemId);
-      if (item) {
-        return item.quantity;
+    // This is redundant due to the useEffect above, but adding as a safeguard
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(CUSTOMER_INFO_STORAGE_KEY, JSON.stringify(info));
+      } catch (error) {
+        console.error("Error saving customer info to localStorage:", error);
       }
     }
-    return 0;
   };
 
-  const [merchantsData, setMerchantsData] = useState<Merchant[]>([]);
-
-  useEffect(() => {
-    const fetchMerchantsData = async () => {
-      const { data, error } = await supabase.from("merchants").select("*");
-      if (error) {
-        // console.error("Error fetching merchants data:", error);
-        setMerchantsData([]);
-      } else {
-        setMerchantsData(data || []);
-      }
-    };
-
-    if (navigator.onLine) {
-      fetchMerchantsData();
+  const saveCart = async () => {
+    try {
+      await indexedDBService.saveCart(cartState.items);
+    } catch (error) {
+      console.error("Error saving cart to IndexedDB:", error);
     }
-  }, []);
+  };
 
-  const getSubtotal = () => {
-    return Object.keys(state.items).reduce((total, merchantId) => {
-      const merchant = merchantsData.find((m) => m.id === Number(merchantId));
-      if (merchant && isCurrentlyOpen(merchant.openingHours)) {
-        return total + getMerchantTotal(Number(merchantId));
-      }
-      return total;
-    }, 0);
+  const loadCart = async () => {
+    try {
+      const loadedItems = await indexedDBService.loadCart();
+      setCartState((prevState) => ({
+        ...prevState,
+        items: loadedItems,
+      }));
+    } catch (error) {
+      console.error("Error loading cart from IndexedDB:", error);
+    }
   };
 
   return (
     <CartContext.Provider
       value={{
-        cartItems: Object.values(state.items).flat(),
+        items: cartState.items,
+        customerInfo: cartState.customerInfo,
         addToCart,
         removeFromCart,
         updateQuantity,
-        updateItemNotes,
+        updateNotes,
         clearCart,
-        clearMerchantCart,
-        customerInfo: state.customerInfo,
-        updateCustomerInfo,
-        getCartTotal,
-        getMerchantTotal,
-        getItemCount,
         getMerchantItems,
-        useMerchantInfo,
-        getItemQuantity,
-        getSubtotal,
+        getTotalItems,
+        getTotalPrice,
+        getMerchantTotalPrice,
+        setCustomerInfo,
+        saveCart,
+        loadCart,
         calculateDeliveryFee,
       }}
     >
@@ -620,7 +631,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
 // eslint-disable-next-line react-refresh/only-export-components
 export const useCart = () => {
   const context = useContext(CartContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useCart must be used within a CartProvider");
   }
   return context;
