@@ -75,23 +75,31 @@ const OptionsPopup: React.FC<OptionsPopupProps> = ({
 
   // Handler select option
   const handleSelect = (group: MenuOptionGroup, option: MenuOption) => {
+    console.log("Selecting option:", { group, option });
     if (group.type.startsWith("single")) {
-      setSelectedOptions((prev) => ({ ...prev, [group.id]: option.id }));
+      setSelectedOptions((prev) => {
+        const newOptions = { ...prev, [group.id]: option.id };
+        console.log("New selected options:", newOptions);
+        return newOptions;
+      });
     } else if (group.type === "multiple_optional") {
       setSelectedOptions((prev) => {
         const prevArr = Array.isArray(prev[group.id])
           ? (prev[group.id] as string[])
           : [];
+        let newOptions;
         if (prevArr.includes(option.id)) {
-          return {
+          newOptions = {
             ...prev,
             [group.id]: prevArr.filter((id) => id !== option.id),
           };
         } else {
           if (group.maxSelections && prevArr.length >= group.maxSelections)
             return prev;
-          return { ...prev, [group.id]: [...prevArr, option.id] };
+          newOptions = { ...prev, [group.id]: [...prevArr, option.id] };
         }
+        console.log("New selected options:", newOptions);
+        return newOptions;
       });
     }
   };
@@ -114,13 +122,34 @@ const OptionsPopup: React.FC<OptionsPopupProps> = ({
     const transformedOptions: { [groupId: string]: string | string[] } = {};
 
     if (item.options?.optionGroups) {
+      console.log("Option groups:", item.options.optionGroups);
       item.options.optionGroups.forEach((group) => {
         const selected = selectedOptions[group.id];
+        console.log("Processing group:", { group, selected });
         if (selected) {
-          transformedOptions[group.id] = selected;
+          if (group.type.startsWith("single")) {
+            transformedOptions[group.id] = selected as string;
+          } else if (
+            group.type === "multiple_optional" &&
+            Array.isArray(selected)
+          ) {
+            transformedOptions[group.id] = selected;
+          }
         }
       });
     }
+
+    // Ensure all required options are selected
+    const hasAllRequired = item.options?.optionGroups.every(
+      (group) =>
+        group.type !== "single_required" || transformedOptions[group.id]
+    );
+
+    if (!hasAllRequired) return;
+
+    console.log("Selected Options:", selectedOptions);
+    console.log("Transformed Options:", transformedOptions);
+    console.log("Item:", item);
 
     onAddToCart(item, quantity, transformedOptions);
     onClose();

@@ -147,7 +147,9 @@ class IndexedDBService {
     return new Promise((resolve, reject) => {
       // Create a unique key for the item based on its options
       const itemKey = item.selectedOptions
-        ? `${item.selectedOptions.level?.value || ""}-${
+        ? `${item.selectedOptions.variant?.value || ""}-${
+            item.selectedOptions.level?.value || ""
+          }-${
             item.selectedOptions.toppings
               ?.map((t) => t.value)
               .sort()
@@ -159,6 +161,30 @@ class IndexedDBService {
       const request = store.put({
         ...item,
         itemKey,
+        // Ensure selectedOptions is properly structured
+        selectedOptions: item.selectedOptions
+          ? {
+              variant: item.selectedOptions.variant
+                ? {
+                    label: item.selectedOptions.variant.label,
+                    value: item.selectedOptions.variant.value,
+                    extraPrice: item.selectedOptions.variant.extraPrice,
+                  }
+                : undefined,
+              level: item.selectedOptions.level
+                ? {
+                    label: item.selectedOptions.level.label,
+                    value: item.selectedOptions.level.value,
+                    extraPrice: item.selectedOptions.level.extraPrice,
+                  }
+                : undefined,
+              toppings: item.selectedOptions.toppings?.map((topping) => ({
+                label: topping.label,
+                value: topping.value,
+                extraPrice: topping.extraPrice,
+              })),
+            }
+          : undefined,
       });
       request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error);
@@ -175,6 +201,13 @@ class IndexedDBService {
           ...item,
           selectedOptions: item.selectedOptions
             ? {
+                variant: item.selectedOptions.variant
+                  ? {
+                      label: item.selectedOptions.variant.label,
+                      value: item.selectedOptions.variant.value,
+                      extraPrice: item.selectedOptions.variant.extraPrice,
+                    }
+                  : undefined,
                 level: item.selectedOptions.level
                   ? {
                       label: item.selectedOptions.level.label,

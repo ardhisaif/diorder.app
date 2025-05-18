@@ -149,6 +149,13 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
               // Ensure selectedOptions is properly structured
               selectedOptions: item.selectedOptions
                 ? {
+                    variant: item.selectedOptions.variant
+                      ? {
+                          label: item.selectedOptions.variant.label,
+                          value: item.selectedOptions.variant.value,
+                          extraPrice: item.selectedOptions.variant.extraPrice,
+                        }
+                      : undefined,
                     level: item.selectedOptions.level
                       ? {
                           label: item.selectedOptions.level.label,
@@ -171,26 +178,10 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
 
         // Add all current items to IndexedDB
         for (const item of allItems) {
-          await indexedDBService.addToCart({
-            ...item,
-            selectedOptions: item.selectedOptions
-              ? {
-                  level: item.selectedOptions.level
-                    ? {
-                        label: item.selectedOptions.level.label,
-                        value: item.selectedOptions.level.value,
-                        extraPrice: item.selectedOptions.level.extraPrice,
-                      }
-                    : undefined,
-                  toppings: item.selectedOptions.toppings?.map((topping) => ({
-                    label: topping.label,
-                    value: topping.value,
-                    extraPrice: topping.extraPrice,
-                  })),
-                }
-              : undefined,
-          });
+          await indexedDBService.addToCart(item);
         }
+
+        console.log("Cart synced to IndexedDB:", allItems);
       } catch (error) {
         console.error("Error syncing to IndexedDB:", error);
       }
@@ -239,11 +230,12 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     merchantId: number,
     quantity: number = 1
   ) => {
+    console.log("Adding to cart:", { item, merchantId, quantity });
+
     const currentSubtotal = getTotalPrice();
     const newSubtotal = currentSubtotal + item.price * quantity;
 
     // Check if adding these items would exceed 100k for the first time
-    // Only show alert if not a custom village
     if (
       currentSubtotal <= 100000 &&
       newSubtotal > 100000 &&
@@ -264,17 +256,46 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
       const transformedOptions: TransformedOptions | undefined =
         item.selectedOptions
           ? {
-              level: (() => {
-                const singleGroup = item.options?.optionGroups.find(
+              variant: (() => {
+                // Find the variant option group (first single_required group)
+                const variantGroup = item.options?.optionGroups.find(
                   (g) => g.type === "single_required"
                 );
-                if (!singleGroup) return undefined;
+                console.log("Variant group:", variantGroup);
+                if (!variantGroup) return undefined;
                 const selectedId = item.selectedOptions![
-                  singleGroup.id
+                  variantGroup.id
                 ] as string;
-                const selectedOption = singleGroup.options.find(
+                console.log("Selected variant ID:", selectedId);
+                if (!selectedId) return undefined;
+                const selectedOption = variantGroup.options.find(
                   (o) => o.id === selectedId
                 );
+                console.log("Selected variant option:", selectedOption);
+                return selectedOption
+                  ? {
+                      label: selectedOption.name,
+                      value: selectedOption.id,
+                      extraPrice: selectedOption.extraPrice,
+                    }
+                  : undefined;
+              })(),
+              level: (() => {
+                // Find the spice level option group (second single_required group)
+                const spiceLevelGroup = item.options?.optionGroups.find(
+                  (g, index) => g.type === "single_required" && index > 0
+                );
+                console.log("Spice level group:", spiceLevelGroup);
+                if (!spiceLevelGroup) return undefined;
+                const selectedId = item.selectedOptions![
+                  spiceLevelGroup.id
+                ] as string;
+                console.log("Selected level ID:", selectedId);
+                if (!selectedId) return undefined;
+                const selectedOption = spiceLevelGroup.options.find(
+                  (o) => o.id === selectedId
+                );
+                console.log("Selected level option:", selectedOption);
                 return selectedOption
                   ? {
                       label: selectedOption.name,
@@ -287,12 +308,15 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
                 const multipleGroup = item.options?.optionGroups.find(
                   (g) => g.type === "multiple_optional"
                 );
+                console.log("Toppings group:", multipleGroup);
                 if (!multipleGroup) return undefined;
                 const selectedIds = item.selectedOptions![
                   multipleGroup.id
                 ] as string[];
+                console.log("Selected topping IDs:", selectedIds);
+                if (!selectedIds) return undefined;
                 return multipleGroup.options
-                  .filter((o) => selectedIds?.includes(o.id))
+                  .filter((o) => selectedIds.includes(o.id))
                   .map((o) => ({
                     label: o.name,
                     value: o.id,
@@ -301,6 +325,8 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
               })(),
             }
           : undefined;
+
+      console.log("Transformed options:", transformedOptions);
 
       // Create new cart item with transformed options
       const newItem: CartItem = {
@@ -485,6 +511,12 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
         merchantItems.reduce((merchantTotal, item) => {
           let itemTotal = item.price * item.quantity;
 
+          // Add variant price if exists
+          if (item.selectedOptions?.variant) {
+            itemTotal +=
+              item.selectedOptions.variant.extraPrice * item.quantity;
+          }
+
           // Add level price if exists
           if (item.selectedOptions?.level) {
             itemTotal += item.selectedOptions.level.extraPrice * item.quantity;
@@ -507,6 +539,11 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     const merchantItems = cartState.items[merchantId] || [];
     return merchantItems.reduce((total, item) => {
       let itemTotal = item.price * item.quantity;
+
+      // Add variant price if exists
+      if (item.selectedOptions?.variant) {
+        itemTotal += item.selectedOptions.variant.extraPrice * item.quantity;
+      }
 
       // Add level price if exists
       if (item.selectedOptions?.level) {

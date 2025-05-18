@@ -24,6 +24,11 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
   const calculateItemTotal = () => {
     let total = item.price * item.quantity;
 
+    // Add variant price if exists
+    if (item.selectedOptions?.variant) {
+      total += item.selectedOptions.variant.extraPrice * item.quantity;
+    }
+
     // Add level price if exists
     if (item.selectedOptions?.level) {
       total += item.selectedOptions.level.extraPrice * item.quantity;
@@ -49,6 +54,16 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
         <span>{formatCurrency(item.price)}</span>
       </div>
     );
+
+    // Variant price if exists
+    if (item.selectedOptions?.variant) {
+      breakdown.push(
+        <div key="variant" className="flex justify-between text-sm">
+          <span>{item.selectedOptions.variant.label}</span>
+          <span>{formatCurrency(item.selectedOptions.variant.extraPrice)}</span>
+        </div>
+      );
+    }
 
     // Level price if exists
     if (item.selectedOptions?.level) {
@@ -78,6 +93,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
     // Subtotal per item
     const subtotalPerItem =
       item.price +
+      (item.selectedOptions?.variant?.extraPrice || 0) +
       (item.selectedOptions?.level?.extraPrice || 0) +
       (item.selectedOptions?.toppings?.reduce(
         (sum, t) => sum + t.extraPrice,
@@ -101,6 +117,10 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
         <span>{formatCurrency(calculateItemTotal())}</span>
       </div>
     );
+
+    // Log untuk debugging
+    console.log("Cart Item:", item);
+    console.log("Selected Options:", item.selectedOptions);
 
     return breakdown;
   };

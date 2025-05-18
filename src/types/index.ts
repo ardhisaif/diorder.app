@@ -54,6 +54,7 @@ export interface TransformedOption {
 
 export interface TransformedOptions {
   level?: TransformedOption;
+  variant?: TransformedOption;
   toppings?: TransformedOption[];
 }
 
