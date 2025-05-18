@@ -77,7 +77,13 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, merchantId, isOpen }) => {
         setShowVariantPopup(true);
       }
     } else {
-      removeFromCart(item, merchantId);
+      const cartItem: CartItem = {
+        ...item,
+        quantity: 1,
+        notes: "",
+        selectedOptions: undefined,
+      };
+      removeFromCart(cartItem, merchantId);
     }
   };
 
@@ -88,7 +94,21 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, merchantId, isOpen }) => {
 
   // Handler untuk menambah varian tertentu
   const handlePlusVariant = (variant: CartItem) => {
-    addToCart({ ...variant }, merchantId);
+    const menuItem: MenuItemType = {
+      ...item,
+      selectedOptions: {
+        ...(variant.selectedOptions?.level && {
+          [item.options?.optionGroups.find((g) => g.type === "single_required")
+            ?.id || ""]: variant.selectedOptions.level.value,
+        }),
+        ...(variant.selectedOptions?.toppings && {
+          [item.options?.optionGroups.find(
+            (g) => g.type === "multiple_optional"
+          )?.id || ""]: variant.selectedOptions.toppings.map((t) => t.value),
+        }),
+      },
+    };
+    addToCart(menuItem, merchantId);
   };
 
   return (

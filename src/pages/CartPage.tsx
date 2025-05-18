@@ -406,8 +406,7 @@ const CartPage: React.FC = () => {
           <option value="">Pilih Desa</option>
           {VILLAGES.map((village) => (
             <option key={village} value={village}>
-              {village.padEnd(40, " ")} | Ongkir Rp.
-              {VILLAGE_SHIPPING_COSTS[village].toLocaleString("id-ID")}
+              {village.padEnd(40, " ")} 
             </option>
           ))}
           <option value="Desa Lain">Desa Lain (Ongkir Nego)</option>

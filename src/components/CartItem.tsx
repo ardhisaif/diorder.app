@@ -117,7 +117,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
           <h3 className="font-bold text-lg">{item.name}</h3>
           {item.selectedOptions?.level && (
             <p className="text-gray-600 text-base">
-              Level: {item.selectedOptions.level.label}
+              {item.selectedOptions.level.label}
             </p>
           )}
           {item.selectedOptions?.toppings &&
