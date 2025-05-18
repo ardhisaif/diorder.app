@@ -56,12 +56,12 @@ export default defineConfig({
           {
             urlPattern:
               /^https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/.*/i,
-            handler: "StaleWhileRevalidate", // Lebih baik untuk update gambar
+            handler: "CacheFirst",
             options: {
               cacheName: "supabase-images",
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 86400,
+                maxAgeSeconds: 60 * 60 * 24 * 7,
               },
               cacheableResponse: {
                 statuses: [0, 200],
@@ -75,7 +75,7 @@ export default defineConfig({
               cacheName: "images-cache",
               expiration: {
                 maxEntries: 50,
-                maxAgeSeconds: 86400,
+                maxAgeSeconds: 60 * 60 * 24 * 7,
               },
               cacheableResponse: {
                 statuses: [0, 200],
@@ -89,7 +89,7 @@ export default defineConfig({
               cacheName: "static-resources",
               expiration: {
                 maxEntries: 30,
-                maxAgeSeconds: 86400,
+                maxAgeSeconds: 60 * 60 * 24,
               },
               cacheableResponse: {
                 statuses: [0, 200],
@@ -103,7 +103,36 @@ export default defineConfig({
               cacheName: "external-images",
               expiration: {
                 maxEntries: 50,
-                maxAgeSeconds: 86400,
+                maxAgeSeconds: 60 * 60 * 24 * 7,
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "api-cache",
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 5,
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+              networkTimeoutSeconds: 10,
+            },
+          },
+          {
+            urlPattern: /\.html$/,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "html-cache",
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60,
               },
               cacheableResponse: {
                 statuses: [0, 200],
@@ -118,9 +147,9 @@ export default defineConfig({
     include: ["lucide-react"],
   },
   build: {
-    sourcemap: false, // Disable source maps for the build
+    sourcemap: false,
   },
   server: {
-    sourcemapIgnoreList: (sourcePath) => /node_modules/.test(sourcePath), // Ignore source map warnings for node_modules
+    sourcemapIgnoreList: (sourcePath) => /node_modules/.test(sourcePath),
   },
 });

@@ -218,6 +218,84 @@ class IndexedDBService {
     });
   }
 
+  // Add method to remove deleted merchants and their associated data
+  async removeMerchantAndData(merchantId: number): Promise<void> {
+    const merchantStore = this.getStore("merchantInfo", "readwrite");
+    const menuStore = this.getStore("menuItems", "readwrite");
+    const cartStore = this.getStore("cartItems", "readwrite");
+
+    return new Promise((resolve, reject) => {
+      try {
+        // Remove merchant
+        const merchantRequest = merchantStore.delete(merchantId);
+
+        // Remove menu items for this merchant
+        const menuIndex = menuStore.index("by_merchant");
+        const menuRange = IDBKeyRange.only(merchantId);
+        const menuRequest = menuIndex.openCursor(menuRange);
+
+        menuRequest.onsuccess = () => {
+          const cursor = menuRequest.result;
+          if (cursor) {
+            cursor.delete();
+            cursor.continue();
+          }
+        };
+
+        // Remove cart items for this merchant
+        const cartIndex = cartStore.index("by_merchant");
+        const cartRange = IDBKeyRange.only(merchantId);
+        const cartRequest = cartIndex.openCursor(cartRange);
+
+        cartRequest.onsuccess = () => {
+          const cursor = cartRequest.result;
+          if (cursor) {
+            cursor.delete();
+            cursor.continue();
+          }
+        };
+
+        merchantRequest.onsuccess = () => resolve();
+        merchantRequest.onerror = () => reject(merchantRequest.error);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  // Add method to sync merchants with server data
+  async syncMerchants(serverMerchants: Merchant[]): Promise<void> {
+    const cachedMerchants = await this.getAll("merchantInfo");
+
+    return new Promise((resolve, reject) => {
+      try {
+        // Find merchants that exist in cache but not in server data (deleted merchants)
+        const deletedMerchantIds = cachedMerchants
+          .filter(
+            (cached) =>
+              !serverMerchants.some((server) => server.id === cached.id)
+          )
+          .map((merchant) => merchant.id);
+
+        // Remove deleted merchants and their data
+        const removePromises = deletedMerchantIds.map((id) =>
+          this.removeMerchantAndData(id)
+        );
+
+        // Update or add new merchants
+        const updatePromises = serverMerchants.map((merchant) =>
+          this.update("merchantInfo", merchant)
+        );
+
+        Promise.all([...removePromises, ...updatePromises])
+          .then(() => resolve())
+          .catch(reject);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
   // Methods for menu items
   async cacheMenuItems(items: MenuItem[], merchantId: number): Promise<void> {
     const store = this.getStore("menuItems", "readwrite");
@@ -286,6 +364,40 @@ class IndexedDBService {
       request.onerror = () => {
         reject(request.error);
       };
+    });
+  }
+
+  // Add method to sync menu items with server data
+  async syncMenus(serverMenuItems: MenuItem[]): Promise<void> {
+    const cachedMenuItems = await this.getAll("menuItems");
+    console.log("cachedMenuItems", cachedMenuItems);
+    return new Promise((resolve, reject) => {
+      try {
+        // Find menu items that exist in cache but not in server data (deleted items)
+        const deletedMenuItemIds = cachedMenuItems
+          .filter(
+            (cached) =>
+              !serverMenuItems.some((server) => server.id === cached.id)
+          )
+          .map((item) => item.id);
+
+        // Remove deleted menu items
+        const removePromises = deletedMenuItemIds.map((id) =>
+          this.delete("menuItems", id)
+        );
+
+        // Update or add new menu items
+        const updatePromises = serverMenuItems.map((item) => {
+          const itemWithMerchant = { ...item, merchant_id: merchantId };
+          return this.update("menuItems", itemWithMerchant);
+        });
+
+        Promise.all([...removePromises, ...updatePromises])
+          .then(() => resolve())
+          .catch(reject);
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 }
