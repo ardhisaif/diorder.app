@@ -400,8 +400,8 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
 
     setCartState((prevState) => {
       const merchantItems = prevState.items[merchantId] || [];
-      const updatedMerchantItems = merchantItems.map((item) =>
-        item.id === item.id ? { ...item, quantity } : item
+      const updatedMerchantItems = merchantItems.map((cartItem) =>
+        cartItem.id === item.id ? { ...cartItem, quantity } : cartItem
       );
 
       return {
@@ -414,11 +414,11 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     });
   };
 
-  const updateNotes = (_item: CartItem, merchantId: number, notes: string) => {
+  const updateNotes = (item: CartItem, merchantId: number, notes: string) => {
     setCartState((prevState) => {
       const merchantItems = prevState.items[merchantId] || [];
-      const updatedMerchantItems = merchantItems.map((item) =>
-        item.id === item.id ? { ...item, notes } : item
+      const updatedMerchantItems = merchantItems.map((cartItem) =>
+        cartItem.id === item.id ? { ...cartItem, notes } : cartItem
       );
 
       return {

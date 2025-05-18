@@ -10,7 +10,7 @@ interface CartItemProps {
 }
 
 const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
-  const { updateQuantity, updateItemNotes } = useCart();
+  const { updateQuantity, updateNotes } = useCart();
   const [notes, setNotes] = useState(item.notes || "");
 
   const formatCurrency = (amount: number) => {
@@ -132,7 +132,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
               value={notes}
               onChange={(e) => {
                 setNotes(e.target.value);
-                updateItemNotes(item.id, e.target.value, merchantId);
+                updateNotes(item, merchantId, e.target.value);
               }}
               placeholder="Tambahkan catatan (opsional)"
               className="w-full p-2 border rounded-lg text-base"
@@ -143,7 +143,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
           <div className="flex justify-end items-center mt-4">
             <button
               onClick={() =>
-                updateQuantity(item.id, item.quantity - 1, merchantId)
+                updateQuantity(item, merchantId, item.quantity - 1)
               }
               className="w-8 h-8 flex items-center justify-center rounded-lg bg-orange-500 text-white active:bg-orange-600"
               aria-label="Kurangi jumlah"
@@ -153,7 +153,7 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
             <span className="mx-4 font-medium text-xl">{item.quantity}</span>
             <button
               onClick={() =>
-                updateQuantity(item.id, item.quantity + 1, merchantId)
+                updateQuantity(item, merchantId, item.quantity + 1)
               }
               className="w-8 h-8 flex items-center justify-center rounded-lg bg-orange-500 text-white active:bg-orange-600"
               aria-label="Tambah jumlah"

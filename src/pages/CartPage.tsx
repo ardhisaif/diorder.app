@@ -51,7 +51,7 @@ const CartPage: React.FC = () => {
     getMerchantItems,
     getMerchantTotalPrice,
     customerInfo,
-    updateCustomerInfo,
+    setCustomerInfo,
     clearCart,
     calculateDeliveryFee,
   } = useCart();
@@ -103,6 +103,7 @@ const CartPage: React.FC = () => {
     >
   ) => {
     const { name, value } = e.target;
+    console.log("Input changed:", { name, value });
 
     if (name === "village" && value === "Desa Lain") {
       // Tampilkan alert untuk desa di luar area
@@ -112,14 +113,14 @@ const CartPage: React.FC = () => {
       setShowAlert(true);
 
       // Update customer info dengan desa kustom
-      updateCustomerInfo({
+      setCustomerInfo({
         ...customerInfo,
         [name]: "Desa Lain",
         isCustomVillage: true,
         needsNegotiation: true,
       });
     } else if (name === "customVillage") {
-      updateCustomerInfo({
+      setCustomerInfo({
         ...customerInfo,
         customVillage: value,
         isCustomVillage: true,
@@ -127,7 +128,7 @@ const CartPage: React.FC = () => {
       });
     } else {
       // Pertahankan status desa kustom saat mengubah field lain
-      updateCustomerInfo({
+      setCustomerInfo({
         ...customerInfo,
         [name]: value,
         // Hanya reset status desa kustom jika mengubah field village ke desa yang valid
@@ -358,8 +359,7 @@ const CartPage: React.FC = () => {
 
   const renderShippingForm = () => (
     <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-      <h2 className="font-bold text-lg mb-4">Informasi Pengiriman</h2>
-
+      <h2 className="text-lg font-bold mb-4">Informasi Pengiriman</h2>
       <div className="mb-4">
         <label
           className="block text-gray-700 text-sm font-bold mb-2"
@@ -371,7 +371,7 @@ const CartPage: React.FC = () => {
           type="text"
           id="name"
           name="name"
-          value={customerInfo.name}
+          value={customerInfo.name || ""}
           onChange={handleInputChange}
           className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
             showValidation && !customerInfo.name ? "border-red-500" : ""
@@ -384,18 +384,6 @@ const CartPage: React.FC = () => {
             Silakan masukkan nama pemesan
           </p>
         )}
-      </div>
-
-      <div className="mb-4">
-        <label className="block text-gray-700 text-sm font-bold mb-2">
-          Kecamatan
-        </label>
-        <input
-          type="text"
-          value="Duduksampeyan"
-          className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-500 leading-tight bg-gray-100"
-          disabled
-        />
       </div>
 
       <div className="mb-4">
@@ -471,7 +459,7 @@ const CartPage: React.FC = () => {
         <textarea
           id="addressDetail"
           name="addressDetail"
-          value={customerInfo.addressDetail}
+          value={customerInfo.addressDetail || ""}
           onChange={handleInputChange}
           className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
             showValidation && !customerInfo.addressDetail
@@ -499,7 +487,7 @@ const CartPage: React.FC = () => {
         <textarea
           id="notes"
           name="notes"
-          value={customerInfo.notes}
+          value={customerInfo.notes || ""}
           onChange={handleInputChange}
           className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
           placeholder="Catatan tambahan untuk pesanan Anda"
