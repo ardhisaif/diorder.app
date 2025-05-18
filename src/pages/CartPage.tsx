@@ -169,22 +169,22 @@ const CartPage: React.FC = () => {
     const totalWithDelivery = subtotal + (deliveryFee === -1 ? 0 : deliveryFee);
 
     // Format the order message for WhatsApp
-    let message = `*PESANAN BARU*\n`;
+    let message = `*🛍️ PESANAN BARU*\n`;
     message += `━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
     // Informasi Pelanggan
-    message += `*INFORMASI PELANGGAN*\n`;
-    message += `Nama: ${customerInfo.name}\n`;
-    message += `Kecamatan: Duduksampeyan\n`;
-    message += `Desa: ${
+    message += `*👤 INFORMASI PELANGGAN*\n`;
+    message += `📝 Nama: ${customerInfo.name}\n`;
+    message += `📍 Kecamatan: Duduksampeyan\n`;
+    message += `🏘️ Desa: ${
       customerInfo.isCustomVillage
         ? customerInfo.customVillage
         : customerInfo.village
     }\n`;
-    message += `Detail Alamat: ${customerInfo.addressDetail}\n\n`;
+    message += `📌 Detail Alamat: ${customerInfo.addressDetail}\n\n`;
 
     // Detail Pesanan
-    message += `*DETAIL PESANAN*\n`;
+    message += `*🍽️ DETAIL PESANAN*\n`;
     message += `━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
     // Add orders from each merchant
@@ -193,16 +193,16 @@ const CartPage: React.FC = () => {
         const items = getMerchantItems(merchant.id);
         const merchantSubtotal = getMerchantTotalPrice(merchant.id);
 
-        message += `*${merchant.name}*\n`;
+        message += `*🏪 ${merchant.name}*\n`;
         items.forEach((item) => {
           message += `• ${item.name} (${item.quantity}x)\n`;
 
           // Add base price
-          message += `  Harga: ${formatCurrency(item.price)}\n`;
+          message += `  💰 Harga: ${formatCurrency(item.price)}\n`;
 
           // Add level if selected
           if (item.selectedOptions?.level) {
-            message += `  Level: ${
+            message += `  🌶️ Level: ${
               item.selectedOptions.level.label
             } (+${formatCurrency(item.selectedOptions.level.extraPrice)})\n`;
           }
@@ -212,7 +212,7 @@ const CartPage: React.FC = () => {
             item.selectedOptions?.toppings &&
             item.selectedOptions.toppings.length > 0
           ) {
-            message += `  Topping:\n`;
+            message += `  🧀 Topping:\n`;
             item.selectedOptions.toppings.forEach((topping) => {
               message += `    - ${topping.label} (+${formatCurrency(
                 topping.extraPrice
@@ -230,32 +230,33 @@ const CartPage: React.FC = () => {
             ) || 0) *
               item.quantity;
 
-          message += `  Total: ${formatCurrency(itemTotal)}\n\n`;
+          message += `  💵 Total: ${formatCurrency(itemTotal)}\n\n`;
         });
-        message += `Subtotal ${merchant.name}: ${formatCurrency(
+        message += `📊 Subtotal ${merchant.name}: ${formatCurrency(
           merchantSubtotal
         )}\n\n`;
       }
     });
 
     // Ringkasan Pembayaran
-    message += `*RINGKASAN PEMBAYARAN*\n`;
+    message += `*💰 RINGKASAN PEMBAYARAN*\n`;
     message += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    message += `Subtotal: ${formatCurrency(subtotal)}\n`;
+    message += `📦 Subtotal: ${formatCurrency(subtotal)}\n`;
     if (customerInfo.isCustomVillage && customerInfo.needsNegotiation) {
-      message += `Ongkir: Perlu Negosiasi\n`;
+      message += `🚚 Ongkir: Perlu Negosiasi\n`;
     } else {
-      message += `Ongkir: ${formatCurrency(deliveryFee)}\n`;
+      message += `🚚 Ongkir: ${formatCurrency(deliveryFee)}\n`;
     }
-    message += `*TOTAL: ${formatCurrency(totalWithDelivery)}*\n\n`;
+    message += `*💵 TOTAL: ${formatCurrency(totalWithDelivery)}*\n\n`;
 
     if (customerInfo.notes) {
-      message += `*CATATAN*\n`;
+      message += `*📝 CATATAN*\n`;
       message += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
       message += `${customerInfo.notes}\n\n`;
     }
 
-    message += `Terima kasih telah memesan! 🙏`;
+    message += `Terima kasih telah memesan! 🙏\n`;
+    message += `Pesanan Anda akan segera kami proses. ⏳`;
 
     // Track checkout event with Google Analytics
     const trackCheckoutEvent = () => {
@@ -406,7 +407,7 @@ const CartPage: React.FC = () => {
           <option value="">Pilih Desa</option>
           {VILLAGES.map((village) => (
             <option key={village} value={village}>
-              {village.padEnd(40, " ")} 
+              {village.padEnd(40, " ")}
             </option>
           ))}
           <option value="Desa Lain">Desa Lain (Ongkir Nego)</option>
