@@ -119,8 +119,8 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
     );
 
     // Log untuk debugging
-    console.log("Cart Item:", item);
-    console.log("Selected Options:", item.selectedOptions);
+    // console.log("Cart Item:", item);
+    // console.log("Selected Options:", item.selectedOptions);
 
     return breakdown;
   };

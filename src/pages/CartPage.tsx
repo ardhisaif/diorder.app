@@ -103,7 +103,7 @@ const CartPage: React.FC = () => {
     >
   ) => {
     const { name, value } = e.target;
-    console.log("Input changed:", { name, value });
+    // console.log("Input changed:", { name, value });
 
     if (name === "village" && value === "Desa Lain") {
       // Tampilkan alert untuk desa di luar area

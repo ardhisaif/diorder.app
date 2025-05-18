@@ -230,7 +230,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     merchantId: number,
     quantity: number = 1
   ) => {
-    console.log("Adding to cart:", { item, merchantId, quantity });
+    // console.log("Adding to cart:", { item, merchantId, quantity });
 
     const currentSubtotal = getTotalPrice();
     const newSubtotal = currentSubtotal + item.price * quantity;
@@ -261,17 +261,17 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
                 const variantGroup = item.options?.optionGroups.find(
                   (g) => g.type === "single_required"
                 );
-                console.log("Variant group:", variantGroup);
+                // console.log("Variant group:", variantGroup);
                 if (!variantGroup) return undefined;
                 const selectedId = item.selectedOptions![
                   variantGroup.id
                 ] as string;
-                console.log("Selected variant ID:", selectedId);
+                // console.log("Selected variant ID:", selectedId);
                 if (!selectedId) return undefined;
                 const selectedOption = variantGroup.options.find(
                   (o) => o.id === selectedId
                 );
-                console.log("Selected variant option:", selectedOption);
+                // console.log("Selected variant option:", selectedOption);
                 return selectedOption
                   ? {
                       label: selectedOption.name,
@@ -285,17 +285,17 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
                 const spiceLevelGroup = item.options?.optionGroups.find(
                   (g, index) => g.type === "single_required" && index > 0
                 );
-                console.log("Spice level group:", spiceLevelGroup);
+                // console.log("Spice level group:", spiceLevelGroup);
                 if (!spiceLevelGroup) return undefined;
                 const selectedId = item.selectedOptions![
                   spiceLevelGroup.id
                 ] as string;
-                console.log("Selected level ID:", selectedId);
+                // console.log("Selected level ID:", selectedId);
                 if (!selectedId) return undefined;
                 const selectedOption = spiceLevelGroup.options.find(
                   (o) => o.id === selectedId
                 );
-                console.log("Selected level option:", selectedOption);
+                // console.log("Selected level option:", selectedOption);
                 return selectedOption
                   ? {
                       label: selectedOption.name,
@@ -308,12 +308,12 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
                 const multipleGroup = item.options?.optionGroups.find(
                   (g) => g.type === "multiple_optional"
                 );
-                console.log("Toppings group:", multipleGroup);
+                // console.log("Toppings group:", multipleGroup);
                 if (!multipleGroup) return undefined;
                 const selectedIds = item.selectedOptions![
                   multipleGroup.id
                 ] as string[];
-                console.log("Selected topping IDs:", selectedIds);
+                // console.log("Selected topping IDs:", selectedIds);
                 if (!selectedIds) return undefined;
                 return multipleGroup.options
                   .filter((o) => selectedIds.includes(o.id))
@@ -326,7 +326,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
             }
           : undefined;
 
-      console.log("Transformed options:", transformedOptions);
+      // console.log("Transformed options:", transformedOptions);
 
       // Create new cart item with transformed options
       const newItem: CartItem = {
