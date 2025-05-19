@@ -44,31 +44,19 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, merchantId, isOpen }) => {
   const handleAddToCart = (
     item: MenuItemType,
     quantity: number,
-    selectedOptions: {
-      level?: { label: string; value: string; extraPrice: number };
-      toppings?: { label: string; value: string; extraPrice: number }[];
-    }
+    selectedOptions: { [groupId: string]: string | string[] }
   ) => {
-    const optionsWithCategory = {
-      level: selectedOptions.level
-        ? { ...selectedOptions.level, category: "level" as const }
-        : undefined,
-      toppings: selectedOptions.toppings?.map((topping) => ({
-        ...topping,
-        category: "topping" as const,
-      })),
-    };
-    addToCart(
-      { ...item, selectedOptions: optionsWithCategory },
-      merchantId,
-      quantity
-    );
+    addToCart({ ...item, selectedOptions }, merchantId, quantity);
   };
 
   // Handler plus
   const handlePlus = () => {
     if (!isAvailable) return;
-    if (item.options && item.options.length > 0) {
+    if (
+      item.options &&
+      item.options.optionGroups &&
+      item.options.optionGroups.length > 0
+    ) {
       setShowOptions(true);
     } else {
       addToCart(item, merchantId);
@@ -78,14 +66,24 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, merchantId, isOpen }) => {
   // Handler minus
   const handleMinus = () => {
     if (!isAvailable || totalQuantity === 0) return;
-    if (item.options && item.options.length > 0) {
+    if (
+      item.options &&
+      item.options.optionGroups &&
+      item.options.optionGroups.length > 0
+    ) {
       if (allVariants.length === 1) {
         removeFromCart(allVariants[0], merchantId);
       } else {
         setShowVariantPopup(true);
       }
     } else {
-      removeFromCart(item, merchantId);
+      const cartItem: CartItem = {
+        ...item,
+        quantity: 1,
+        notes: "",
+        selectedOptions: undefined,
+      };
+      removeFromCart(cartItem, merchantId);
     }
   };
 
@@ -96,7 +94,21 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, merchantId, isOpen }) => {
 
   // Handler untuk menambah varian tertentu
   const handlePlusVariant = (variant: CartItem) => {
-    addToCart({ ...variant }, merchantId);
+    const menuItem: MenuItemType = {
+      ...item,
+      selectedOptions: {
+        ...(variant.selectedOptions?.level && {
+          [item.options?.optionGroups.find((g) => g.type === "single_required")
+            ?.id || ""]: variant.selectedOptions.level.value,
+        }),
+        ...(variant.selectedOptions?.toppings && {
+          [item.options?.optionGroups.find(
+            (g) => g.type === "multiple_optional"
+          )?.id || ""]: variant.selectedOptions.toppings.map((t) => t.value),
+        }),
+      },
+    };
+    addToCart(menuItem, merchantId);
   };
 
   return (

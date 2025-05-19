@@ -147,7 +147,9 @@ class IndexedDBService {
     return new Promise((resolve, reject) => {
       // Create a unique key for the item based on its options
       const itemKey = item.selectedOptions
-        ? `${item.selectedOptions.level?.value || ""}-${
+        ? `${item.selectedOptions.variant?.value || ""}-${
+            item.selectedOptions.level?.value || ""
+          }-${
             item.selectedOptions.toppings
               ?.map((t) => t.value)
               .sort()
@@ -159,6 +161,30 @@ class IndexedDBService {
       const request = store.put({
         ...item,
         itemKey,
+        // Ensure selectedOptions is properly structured
+        selectedOptions: item.selectedOptions
+          ? {
+              variant: item.selectedOptions.variant
+                ? {
+                    label: item.selectedOptions.variant.label,
+                    value: item.selectedOptions.variant.value,
+                    extraPrice: item.selectedOptions.variant.extraPrice,
+                  }
+                : undefined,
+              level: item.selectedOptions.level
+                ? {
+                    label: item.selectedOptions.level.label,
+                    value: item.selectedOptions.level.value,
+                    extraPrice: item.selectedOptions.level.extraPrice,
+                  }
+                : undefined,
+              toppings: item.selectedOptions.toppings?.map((topping) => ({
+                label: topping.label,
+                value: topping.value,
+                extraPrice: topping.extraPrice,
+              })),
+            }
+          : undefined,
       });
       request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error);
@@ -175,6 +201,13 @@ class IndexedDBService {
           ...item,
           selectedOptions: item.selectedOptions
             ? {
+                variant: item.selectedOptions.variant
+                  ? {
+                      label: item.selectedOptions.variant.label,
+                      value: item.selectedOptions.variant.value,
+                      extraPrice: item.selectedOptions.variant.extraPrice,
+                    }
+                  : undefined,
                 level: item.selectedOptions.level
                   ? {
                       label: item.selectedOptions.level.label,
@@ -368,9 +401,11 @@ class IndexedDBService {
   }
 
   // Add method to sync menu items with server data
-  async syncMenus(serverMenuItems: MenuItem[]): Promise<void> {
+  async syncMenus(
+    serverMenuItems: MenuItem[],
+    merchantId: number
+  ): Promise<void> {
     const cachedMenuItems = await this.getAll("menuItems");
-    console.log("cachedMenuItems", cachedMenuItems);
     return new Promise((resolve, reject) => {
       try {
         // Find menu items that exist in cache but not in server data (deleted items)
@@ -398,6 +433,61 @@ class IndexedDBService {
       } catch (error) {
         reject(error);
       }
+    });
+  }
+
+  async saveCart(items: { [merchantId: number]: CartItem[] }): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const store = this.getStore("cartItems");
+      const request = store.clear();
+
+      request.onerror = () => {
+        reject(request.error);
+      };
+
+      request.onsuccess = () => {
+        const savePromises = Object.entries(items).map(
+          ([merchantIdStr, merchantItems]) => {
+            return new Promise<void>((resolveItem, rejectItem) => {
+              const saveRequest = store.add({
+                merchantId: Number(merchantIdStr),
+                items: merchantItems,
+              });
+
+              saveRequest.onerror = () => {
+                rejectItem(saveRequest.error);
+              };
+
+              saveRequest.onsuccess = () => {
+                resolveItem();
+              };
+            });
+          }
+        );
+
+        Promise.all(savePromises)
+          .then(() => resolve())
+          .catch((error) => reject(error));
+      };
+    });
+  }
+
+  async loadCart(): Promise<{ [merchantId: number]: CartItem[] }> {
+    return new Promise((resolve, reject) => {
+      const store = this.getStore("cartItems");
+      const request = store.getAll();
+
+      request.onerror = () => {
+        reject(request.error);
+      };
+
+      request.onsuccess = () => {
+        const items = request.result.reduce((acc, curr) => {
+          acc[curr.merchantId] = curr.items;
+          return acc;
+        }, {} as { [merchantId: number]: CartItem[] });
+        resolve(items);
+      };
     });
   }
 }

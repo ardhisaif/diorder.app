@@ -49,9 +49,9 @@ const VILLAGES = Object.entries(VILLAGE_SHIPPING_COSTS)
 const CartPage: React.FC = () => {
   const {
     getMerchantItems,
-    getMerchantTotal,
+    getMerchantTotalPrice,
     customerInfo,
-    updateCustomerInfo,
+    setCustomerInfo,
     clearCart,
     calculateDeliveryFee,
   } = useCart();
@@ -103,6 +103,7 @@ const CartPage: React.FC = () => {
     >
   ) => {
     const { name, value } = e.target;
+    // console.log("Input changed:", { name, value });
 
     if (name === "village" && value === "Desa Lain") {
       // Tampilkan alert untuk desa di luar area
@@ -112,14 +113,14 @@ const CartPage: React.FC = () => {
       setShowAlert(true);
 
       // Update customer info dengan desa kustom
-      updateCustomerInfo({
+      setCustomerInfo({
         ...customerInfo,
         [name]: "Desa Lain",
         isCustomVillage: true,
         needsNegotiation: true,
       });
     } else if (name === "customVillage") {
-      updateCustomerInfo({
+      setCustomerInfo({
         ...customerInfo,
         customVillage: value,
         isCustomVillage: true,
@@ -127,7 +128,7 @@ const CartPage: React.FC = () => {
       });
     } else {
       // Pertahankan status desa kustom saat mengubah field lain
-      updateCustomerInfo({
+      setCustomerInfo({
         ...customerInfo,
         [name]: value,
         // Hanya reset status desa kustom jika mengubah field village ke desa yang valid
@@ -159,7 +160,7 @@ const CartPage: React.FC = () => {
 
     const subtotal = merchantsWithItems.reduce((total, merchant) => {
       if (isCurrentlyOpen(merchant.openingHours)) {
-        return total + getMerchantTotal(merchant.id);
+        return total + getMerchantTotalPrice(merchant.id);
       }
       return total;
     }, 0);
@@ -168,40 +169,40 @@ const CartPage: React.FC = () => {
     const totalWithDelivery = subtotal + (deliveryFee === -1 ? 0 : deliveryFee);
 
     // Format the order message for WhatsApp
-    let message = `*PESANAN BARU*\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    let message = `*🛍️ PESANAN BARU 🛍️*\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
 
     // Informasi Pelanggan
-    message += `*INFORMASI PELANGGAN*\n`;
-    message += `Nama: ${customerInfo.name}\n`;
-    message += `Kecamatan: Duduksampeyan\n`;
-    message += `Desa: ${
+    message += `*👤 INFORMASI PELANGGAN*\n`;
+    message += `- *Nama:* ${customerInfo.name}\n`;
+    message += `- *Kecamatan:* Duduksampeyan\n`;
+    message += `- *Desa:* ${
       customerInfo.isCustomVillage
         ? customerInfo.customVillage
         : customerInfo.village
     }\n`;
-    message += `Detail Alamat: ${customerInfo.addressDetail}\n\n`;
+    message += `- *Detail Alamat:* ${customerInfo.addressDetail}\n\n`;
 
     // Detail Pesanan
-    message += `*DETAIL PESANAN*\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `*🍽️ DETAIL PESANAN*\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
 
     // Add orders from each merchant
     merchantsWithItems.forEach((merchant) => {
       if (isCurrentlyOpen(merchant.openingHours)) {
         const items = getMerchantItems(merchant.id);
-        const merchantSubtotal = getMerchantTotal(merchant.id);
+        const merchantSubtotal = getMerchantTotalPrice(merchant.id);
 
-        message += `*${merchant.name}*\n`;
+        message += `*🏪 ${merchant.name}:*\n`;
         items.forEach((item) => {
-          message += `• ${item.name} (${item.quantity}x)\n`;
+          message += `• *${item.name}* (${item.quantity}x)\n`;
 
           // Add base price
-          message += `  Harga: ${formatCurrency(item.price)}\n`;
+          message += `   *Harga:* ${formatCurrency(item.price)}\n`;
 
           // Add level if selected
           if (item.selectedOptions?.level) {
-            message += `  Level: ${
+            message += `   *Level:* ${
               item.selectedOptions.level.label
             } (+${formatCurrency(item.selectedOptions.level.extraPrice)})\n`;
           }
@@ -211,7 +212,7 @@ const CartPage: React.FC = () => {
             item.selectedOptions?.toppings &&
             item.selectedOptions.toppings.length > 0
           ) {
-            message += `  Topping:\n`;
+            message += `   *Topping:*\n`;
             item.selectedOptions.toppings.forEach((topping) => {
               message += `    - ${topping.label} (+${formatCurrency(
                 topping.extraPrice
@@ -229,32 +230,33 @@ const CartPage: React.FC = () => {
             ) || 0) *
               item.quantity;
 
-          message += `  Total: ${formatCurrency(itemTotal)}\n\n`;
+          message += `   *Total:* ${formatCurrency(itemTotal)}\n\n`;
         });
-        message += `Subtotal ${merchant.name}: ${formatCurrency(
+        message += `*Subtotal* ${merchant.name}: *${formatCurrency(
           merchantSubtotal
-        )}\n\n`;
+        )}*\n\n`;
       }
     });
 
     // Ringkasan Pembayaran
-    message += `*RINGKASAN PEMBAYARAN*\n`;
+    message += `*💰 RINGKASAN PEMBAYARAN*\n`;
     message += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    message += `Subtotal: ${formatCurrency(subtotal)}\n`;
+    message += `• *Subtotal:* ${formatCurrency(subtotal)}\n`;
     if (customerInfo.isCustomVillage && customerInfo.needsNegotiation) {
-      message += `Ongkir: Perlu Negosiasi\n`;
+      message += `• *Ongkir:* Perlu Negosiasi\n`;
     } else {
-      message += `Ongkir: ${formatCurrency(deliveryFee)}\n`;
+      message += `• *Ongkir:* ${formatCurrency(deliveryFee)}\n`;
     }
-    message += `*TOTAL: ${formatCurrency(totalWithDelivery)}*\n\n`;
+    message += `*TOTAL PEMBAYARAN: ${formatCurrency(totalWithDelivery)}*\n\n`;
 
     if (customerInfo.notes) {
-      message += `*CATATAN*\n`;
+      message += `*📝 CATATAN*\n`;
       message += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
       message += `${customerInfo.notes}\n\n`;
     }
 
-    message += `Terima kasih telah memesan! 🙏`;
+    message += `Terima kasih telah memesan! 🙏\n`;
+    message += `Pesanan Anda akan segera kami proses. ⏳`;
 
     // Track checkout event with Google Analytics
     const trackCheckoutEvent = () => {
@@ -358,8 +360,7 @@ const CartPage: React.FC = () => {
 
   const renderShippingForm = () => (
     <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-      <h2 className="font-bold text-lg mb-4">Informasi Pengiriman</h2>
-
+      <h2 className="text-lg font-bold mb-4">Informasi Pengiriman</h2>
       <div className="mb-4">
         <label
           className="block text-gray-700 text-sm font-bold mb-2"
@@ -371,7 +372,7 @@ const CartPage: React.FC = () => {
           type="text"
           id="name"
           name="name"
-          value={customerInfo.name}
+          value={customerInfo.name || ""}
           onChange={handleInputChange}
           className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
             showValidation && !customerInfo.name ? "border-red-500" : ""
@@ -384,18 +385,6 @@ const CartPage: React.FC = () => {
             Silakan masukkan nama pemesan
           </p>
         )}
-      </div>
-
-      <div className="mb-4">
-        <label className="block text-gray-700 text-sm font-bold mb-2">
-          Kecamatan
-        </label>
-        <input
-          type="text"
-          value="Duduksampeyan"
-          className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-500 leading-tight bg-gray-100"
-          disabled
-        />
       </div>
 
       <div className="mb-4">
@@ -418,8 +407,7 @@ const CartPage: React.FC = () => {
           <option value="">Pilih Desa</option>
           {VILLAGES.map((village) => (
             <option key={village} value={village}>
-              {village.padEnd(40, " ")} | Ongkir Rp.
-              {VILLAGE_SHIPPING_COSTS[village].toLocaleString("id-ID")}
+              {village.padEnd(40, " ")}
             </option>
           ))}
           <option value="Desa Lain">Desa Lain (Ongkir Nego)</option>
@@ -471,7 +459,7 @@ const CartPage: React.FC = () => {
         <textarea
           id="addressDetail"
           name="addressDetail"
-          value={customerInfo.addressDetail}
+          value={customerInfo.addressDetail || ""}
           onChange={handleInputChange}
           className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
             showValidation && !customerInfo.addressDetail
@@ -499,7 +487,7 @@ const CartPage: React.FC = () => {
         <textarea
           id="notes"
           name="notes"
-          value={customerInfo.notes}
+          value={customerInfo.notes || ""}
           onChange={handleInputChange}
           className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
           placeholder="Catatan tambahan untuk pesanan Anda"
@@ -511,7 +499,7 @@ const CartPage: React.FC = () => {
 
   const renderMerchantItems = (merchant: Merchant) => {
     const items = getMerchantItems(merchant.id);
-    const merchantSubtotal = getMerchantTotal(merchant.id);
+    const merchantSubtotal = getMerchantTotalPrice(merchant.id);
     const isOpen = isCurrentlyOpen(merchant.openingHours);
 
     return (
@@ -563,7 +551,7 @@ const CartPage: React.FC = () => {
   const cartEmpty = merchantsWithItems.length === 0;
   const subtotal = merchantsWithItems.reduce((total, merchant) => {
     if (isCurrentlyOpen(merchant.openingHours)) {
-      return total + getMerchantTotal(merchant.id);
+      return total + getMerchantTotalPrice(merchant.id);
     }
     return total;
   }, 0);

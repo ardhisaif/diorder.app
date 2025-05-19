@@ -19,30 +19,49 @@ export interface MenuItem {
   category: string;
   is_active: boolean;
   options?: {
-    label: string;
-    value: string;
-    category: "level" | "topping";
-    extraPrice: number;
-  }[];
+    optionGroups: MenuOptionGroup[];
+  };
   selectedOptions?: {
-    level?: {
-      label: string;
-      value: string;
-      category: "level";
-      extraPrice: number;
-    };
-    toppings?: {
-      label: string;
-      value: string;
-      category: "topping";
-      extraPrice: number;
-    }[];
+    [groupId: string]: string | string[];
   };
 }
 
-export interface CartItem extends MenuItem {
+export interface MenuOption {
+  id: string;
+  name: string;
+  extraPrice: number;
+}
+
+export type OptionGroupType =
+  | "single_required"
+  | "multiple_optional"
+  | "single_optional";
+
+export interface MenuOptionGroup {
+  id: string;
+  title: string;
+  type: OptionGroupType;
+  description?: string;
+  maxSelections?: number;
+  options: MenuOption[];
+}
+
+export interface TransformedOption {
+  label: string;
+  value: string;
+  extraPrice: number;
+}
+
+export interface TransformedOptions {
+  level?: TransformedOption;
+  variant?: TransformedOption;
+  toppings?: TransformedOption[];
+}
+
+export interface CartItem extends Omit<MenuItem, "selectedOptions"> {
   quantity: number;
-  notes?: string;
+  notes: string;
+  selectedOptions?: TransformedOptions;
 }
 
 export interface CustomerInfo {
@@ -55,4 +74,11 @@ export interface CustomerInfo {
   isCustomVillage?: boolean;
   customVillage?: string;
   needsNegotiation?: boolean;
+}
+
+export interface CartState {
+  items: {
+    [merchantId: number]: CartItem[];
+  };
+  customerInfo: CustomerInfo;
 }
