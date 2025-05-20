@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, MessageCircle } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 
 interface HeaderProps {
   title: string;
@@ -41,8 +42,9 @@ const Header: React.FC<HeaderProps> = ({ title, showBack = false }) => {
           className="relative"
           aria-label="Buka Chat"
         >
-          <MessageCircle size={24} />
-        </button>
+<div className="bg-green-500 rounded-full p-1.5">
+            <FaWhatsapp size={28} className="text-white" />
+          </div>        </button>
       </div>
     </header>
   );
