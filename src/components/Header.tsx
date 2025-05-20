@@ -21,7 +21,7 @@ const Header: React.FC<HeaderProps> = ({ title, showBack = false }) => {
   };
 
   const handleWhatsAppChat = () => {
-    const message = encodeURIComponent("Halo, saya ingin bertanya sesuatu.");
+    const message = encodeURIComponent("Halo, saya ingin memesan makanan.");
     window.open(`https://wa.me/628888465289?text=${message}`, "_blank");
   };
 
