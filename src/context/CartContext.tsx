@@ -215,14 +215,20 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
 
     // Get the village from customer info
     const village = cartState.customerInfo.village;
+    let baseShippingCost = 5000; // Default shipping cost
 
-    // If village exists in our mapping, return its shipping cost
+    // If village exists in our mapping, use its shipping cost
     if (village && village in VILLAGE_SHIPPING_COSTS) {
-      return VILLAGE_SHIPPING_COSTS[village];
+      baseShippingCost = VILLAGE_SHIPPING_COSTS[village];
     }
 
-    // Default shipping cost for unknown villages
-    return 5000;
+    // Calculate total order amount
+    const totalAmount = getTotalPrice();
+
+    // Calculate shipping cost based on total amount
+    // For every 100,000 increment, add the base shipping cost
+    const multiplier = Math.floor(totalAmount / 100000);
+    return baseShippingCost * (multiplier + 1);
   };
 
   const addToCart = (
