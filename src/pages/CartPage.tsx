@@ -198,31 +198,42 @@ const CartPage: React.FC = () => {
           message += `• *${item.name}* (${item.quantity}x)\n`;
 
           // Add base price
-          message += `   *Harga:* ${formatCurrency(item.price)}\n`;
+          message += `   *Harga Dasar:* ${formatCurrency(item.price)}\n`;
 
-          // Add level if selected
-          if (item.selectedOptions?.level) {
-            message += `   *Level:* ${
-              item.selectedOptions.level.label
-            } (+${formatCurrency(item.selectedOptions.level.extraPrice)})\n`;
+          // Add all selected options
+          if (item.selectedOptions) {
+            // Add variant if exists
+            if (item.selectedOptions.variant) {
+              message += `   *${
+                item.selectedOptions.variant.label
+              }:* ${formatCurrency(item.selectedOptions.variant.extraPrice)}\n`;
+            }
+
+            // Add level if exists
+            if (item.selectedOptions.level) {
+              message += `   *${
+                item.selectedOptions.level.label
+              }:* ${formatCurrency(item.selectedOptions.level.extraPrice)}\n`;
+            }
+
+            // Add toppings if any
+            if (
+              item.selectedOptions.toppings &&
+              item.selectedOptions.toppings.length > 0
+            ) {
+              message += `   *Topping:*\n`;
+              item.selectedOptions.toppings.forEach((topping) => {
+                message += `    - ${topping.label} (+${formatCurrency(
+                  topping.extraPrice
+                )})\n`;
+              });
+            }
           }
 
-          // Add toppings if any
-          if (
-            item.selectedOptions?.toppings &&
-            item.selectedOptions.toppings.length > 0
-          ) {
-            message += `   *Topping:*\n`;
-            item.selectedOptions.toppings.forEach((topping) => {
-              message += `    - ${topping.label} (+${formatCurrency(
-                topping.extraPrice
-              )})\n`;
-            });
-          }
-
-          // Add subtotal for this item
+          // Calculate and add subtotal for this item
           const itemTotal =
             item.price * item.quantity +
+            (item.selectedOptions?.variant?.extraPrice || 0) * item.quantity +
             (item.selectedOptions?.level?.extraPrice || 0) * item.quantity +
             (item.selectedOptions?.toppings?.reduce(
               (sum, t) => sum + t.extraPrice,
@@ -230,7 +241,7 @@ const CartPage: React.FC = () => {
             ) || 0) *
               item.quantity;
 
-          message += `   *Total:* ${formatCurrency(itemTotal)}\n\n`;
+          message += `   *Subtotal per item:* ${formatCurrency(itemTotal)}\n\n`;
         });
         message += `*Subtotal* ${merchant.name}: *${formatCurrency(
           merchantSubtotal
