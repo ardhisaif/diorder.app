@@ -248,20 +248,18 @@ const MenuItem: React.FC<MenuItemProps> = ({ item, merchantId, isOpen }) => {
                         </span>
                       </div>
                       <div className="text-xs text-gray-600">
-                        {variant.selectedOptions?.level?.label && (
-                          <span>
-                            Level: {variant.selectedOptions.level.label}{" "}
-                          </span>
-                        )}
-                        {variant.selectedOptions?.toppings &&
-                          variant.selectedOptions.toppings.length > 0 && (
-                            <span>
-                              | Topping:{" "}
-                              {variant.selectedOptions.toppings
-                                .map((t: { label: string }) => t.label)
-                                .join(", ")}
-                            </span>
-                          )}
+                        {(() => {
+                          const opts = variant.selectedOptions || {};
+                          const labels: string[] = [];
+                          if (opts.variant?.label)
+                            labels.push(opts.variant.label);
+                          if (opts.level?.label) labels.push(opts.level.label);
+                          if (opts.toppings && Array.isArray(opts.toppings)) {
+                            opts.toppings.forEach((t) => labels.push(t.label));
+                          }
+                          // Tambahkan fallback untuk opsi dinamis lain jika ada
+                          return labels.length > 0 ? labels.join(", ") : null;
+                        })()}
                       </div>
                       <div className="flex items-center gap-2 mt-2 justify-end">
                         <button
