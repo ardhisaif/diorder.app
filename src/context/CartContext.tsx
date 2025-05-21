@@ -94,6 +94,31 @@ const VILLAGE_SHIPPING_COSTS: { [key: string]: number } = {
   "Wadak Lor": 10000,
 };
 
+// Fungsi utilitas untuk membuat key unik berdasarkan semua opsi
+function getCartItemKey(item: { id: number; selectedOptions?: unknown }) {
+  const base = item.id;
+  if (!item.selectedOptions) return base.toString();
+  // Pastikan selectedOptions adalah object
+  if (typeof item.selectedOptions !== "object" || item.selectedOptions === null)
+    return base.toString();
+  const options = Object.entries(
+    item.selectedOptions as Record<string, unknown>
+  )
+    .map(([groupId, value]) => {
+      if (Array.isArray(value)) {
+        return `${groupId}:${value.slice().sort().join(",")}`;
+      }
+      // Untuk object (TransformedOption), ambil value/id jika ada
+      if (typeof value === "object" && value !== null && "value" in value) {
+        return `${groupId}:${(value as { value: string }).value}`;
+      }
+      return `${groupId}:${value}`;
+    })
+    .sort()
+    .join("|");
+  return `${base}|${options}`;
+}
+
 export const CartProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
@@ -342,12 +367,10 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
         selectedOptions: transformedOptions,
       };
 
-      // Find existing item with same options
+      // Find existing item with same options (pakai key unik)
+      const newItemKey = getCartItemKey(newItem);
       const existingItemIndex = merchantItems.findIndex(
-        (ci) =>
-          ci.id === newItem.id &&
-          JSON.stringify(ci.selectedOptions) ===
-            JSON.stringify(newItem.selectedOptions)
+        (ci) => getCartItemKey(ci) === newItemKey
       );
 
       if (existingItemIndex !== -1) {
@@ -381,26 +404,11 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     setCartState((prevState) => {
       const merchantItems = prevState.items[merchantId] || [];
       // Create a unique identifier for the item based on its options
-      const itemKey = item.selectedOptions
-        ? `${item.id}-${item.selectedOptions.level?.value}-${
-            item.selectedOptions.toppings
-              ?.map((t) => t.value)
-              .sort()
-              .join("-") || ""
-          }`
-        : item.id.toString();
+      const itemKey = getCartItemKey(item);
 
       const updatedMerchantItems = merchantItems
         .map((cartItem) => {
-          const cartItemKey = cartItem.selectedOptions
-            ? `${cartItem.id}-${cartItem.selectedOptions.level?.value}-${
-                cartItem.selectedOptions.toppings
-                  ?.map((t) => t.value)
-                  .sort()
-                  .join("-") || ""
-              }`
-            : cartItem.id.toString();
-
+          const cartItemKey = getCartItemKey(cartItem);
           if (cartItemKey === itemKey) {
             return cartItem.quantity > 1
               ? { ...cartItem, quantity: cartItem.quantity - 1 }
