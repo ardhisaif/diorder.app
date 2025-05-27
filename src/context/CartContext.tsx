@@ -9,7 +9,7 @@ import {
   CartItem,
   CustomerInfo,
   MenuItem,
-  TransformedOptions,
+  // TransformedOptions,
   CartState,
 } from "../types";
 import { indexedDBService } from "../utils/indexedDB";
@@ -127,6 +127,10 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
   const [isDBReady, setIsDBReady] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
+
+  const getUniqueMerchantCount = () => {
+    return Object.keys(cartState.items).length;
+  };
 
   // Initialize IndexedDB and load cart data
   useEffect(() => {
@@ -253,7 +257,21 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     // Calculate shipping cost based on total amount
     // For every 100,000 increment, add the base shipping cost
     const multiplier = Math.floor(totalAmount / 100000);
-    return baseShippingCost * (multiplier + 1);
+    let deliveryFee = baseShippingCost * (multiplier + 1);
+
+    // Calculate additional fee for multiple merchants
+    const merchantCount = getUniqueMerchantCount();
+    if (merchantCount > 3) {
+      // Add 50% for each merchant after the third one
+      const additionalMerchants = merchantCount - 3;
+      const additionalFee = deliveryFee * 0.5 * additionalMerchants;
+      deliveryFee += additionalFee;
+    }
+
+    // Round up to nearest 1000
+    deliveryFee = Math.ceil(deliveryFee / 1000) * 1000;
+
+    return deliveryFee;
   };
 
   const addToCart = (
@@ -261,10 +279,87 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     merchantId: number,
     quantity: number = 1
   ) => {
-    // console.log("Adding to cart:", { item, merchantId, quantity });
-
+    // Calculate current state
     const currentSubtotal = getTotalPrice();
-    const newSubtotal = currentSubtotal + item.price * quantity;
+    const currentMerchantCount = getUniqueMerchantCount();
+    const isNewMerchant = !cartState.items[merchantId];
+    const newMerchantCount = isNewMerchant
+      ? currentMerchantCount + 1
+      : currentMerchantCount;
+
+    // Create temporary state with new item
+    const tempState = {
+      ...cartState,
+      items: {
+        ...cartState.items,
+        [merchantId]: [
+          ...(cartState.items[merchantId] || []),
+          {
+            ...item,
+            quantity,
+            notes: "",
+            selectedOptions: item.selectedOptions,
+          },
+        ],
+      },
+    };
+
+    // Calculate new subtotal with temporary state
+    const newSubtotal = Object.values(tempState.items).reduce(
+      (total, merchantItems) => {
+        return (
+          total +
+          merchantItems.reduce((merchantTotal, item) => {
+            return merchantTotal + item.price * item.quantity;
+          }, 0)
+        );
+      },
+      0
+    );
+
+    // Calculate delivery fees
+    const getDeliveryFee = (state: CartState) => {
+      if (
+        state.customerInfo.isCustomVillage &&
+        state.customerInfo.needsNegotiation
+      ) {
+        return -1;
+      }
+
+      const village = state.customerInfo.village;
+      let baseShippingCost = 5000;
+
+      if (village && village in VILLAGE_SHIPPING_COSTS) {
+        baseShippingCost = VILLAGE_SHIPPING_COSTS[village];
+      }
+
+      const totalAmount = Object.values(state.items).reduce(
+        (total, merchantItems) => {
+          return (
+            total +
+            merchantItems.reduce((merchantTotal, item) => {
+              return merchantTotal + item.price * item.quantity;
+            }, 0)
+          );
+        },
+        0
+      );
+
+      const multiplier = Math.floor(totalAmount / 100000);
+      let deliveryFee = baseShippingCost * (multiplier + 1);
+
+      const merchantCount = Object.keys(state.items).length;
+      if (merchantCount > 3) {
+        const additionalMerchants = merchantCount - 3;
+        const additionalFee = deliveryFee * 0.5 * additionalMerchants;
+        deliveryFee += additionalFee;
+      }
+
+      return Math.ceil(deliveryFee / 1000) * 1000;
+    };
+
+    const oldDeliveryFee = getDeliveryFee(cartState);
+    const newDeliveryFee = getDeliveryFee(tempState);
 
     // Check if adding these items would exceed 100k for the first time
     if (
@@ -272,7 +367,6 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
       newSubtotal > 100000 &&
       !cartState.customerInfo.isCustomVillage
     ) {
-      const newDeliveryFee = calculateDeliveryFee();
       const message = `Total pesanan Anda telah melebihi Rp 100.000. Untuk keamanan pengiriman, ongkir akan bertambah Rp ${newDeliveryFee.toLocaleString(
         "id-ID"
       )} (berlaku kelipatan Rp 100.000 berikutnya).`;
@@ -280,101 +374,36 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
       setShowAlert(true);
     }
 
+    // Check if adding item from a new merchant would exceed 3 merchants
+    if (isNewMerchant && newMerchantCount === 4) {
+      const additionalFee = newDeliveryFee - oldDeliveryFee;
+      const message = `Anda menambahkan pesanan dari resto ke-4. Ongkir akan bertambah Rp ${additionalFee.toLocaleString(
+        "id-ID"
+      )}.`;
+      setAlertMessage(message);
+      setShowAlert(true);
+    }
+
+    // Create a new cart item
+    const newItem: CartItem = {
+      ...item,
+      quantity,
+      notes: "",
+      selectedOptions: item.selectedOptions,
+    };
+
+    // Update cart state
     setCartState((prevState) => {
       const merchantItems = prevState.items[merchantId] || [];
-
-      // Transform selected options into the correct format
-      const transformedOptions: TransformedOptions | undefined =
-        item.selectedOptions
-          ? {
-              variant: (() => {
-                // Find the variant option group (first single_required group)
-                const variantGroup = item.options?.optionGroups.find(
-                  (g) => g.type === "single_required"
-                );
-                // console.log("Variant group:", variantGroup);
-                if (!variantGroup) return undefined;
-                const selectedId = item.selectedOptions![
-                  variantGroup.id
-                ] as string;
-                // console.log("Selected variant ID:", selectedId);
-                if (!selectedId) return undefined;
-                const selectedOption = variantGroup.options.find(
-                  (o) => o.id === selectedId
-                );
-                // console.log("Selected variant option:", selectedOption);
-                return selectedOption
-                  ? {
-                      label: selectedOption.name,
-                      value: selectedOption.id,
-                      extraPrice: selectedOption.extraPrice,
-                    }
-                  : undefined;
-              })(),
-              level: (() => {
-                // Find the spice level option group (second single_required group)
-                const spiceLevelGroup = item.options?.optionGroups.find(
-                  (g, index) => g.type === "single_required" && index > 0
-                );
-                // console.log("Spice level group:", spiceLevelGroup);
-                if (!spiceLevelGroup) return undefined;
-                const selectedId = item.selectedOptions![
-                  spiceLevelGroup.id
-                ] as string;
-                // console.log("Selected level ID:", selectedId);
-                if (!selectedId) return undefined;
-                const selectedOption = spiceLevelGroup.options.find(
-                  (o) => o.id === selectedId
-                );
-                // console.log("Selected level option:", selectedOption);
-                return selectedOption
-                  ? {
-                      label: selectedOption.name,
-                      value: selectedOption.id,
-                      extraPrice: selectedOption.extraPrice,
-                    }
-                  : undefined;
-              })(),
-              toppings: (() => {
-                const multipleGroup = item.options?.optionGroups.find(
-                  (g) => g.type === "multiple_optional"
-                );
-                // console.log("Toppings group:", multipleGroup);
-                if (!multipleGroup) return undefined;
-                const selectedIds = item.selectedOptions![
-                  multipleGroup.id
-                ] as string[];
-                // console.log("Selected topping IDs:", selectedIds);
-                if (!selectedIds) return undefined;
-                return multipleGroup.options
-                  .filter((o) => selectedIds.includes(o.id))
-                  .map((o) => ({
-                    label: o.name,
-                    value: o.id,
-                    extraPrice: o.extraPrice,
-                  }));
-              })(),
-            }
-          : undefined;
-
-      // console.log("Transformed options:", transformedOptions);
-
-      // Create new cart item with transformed options
-      const newItem: CartItem = {
-        ...item,
-        quantity,
-        notes: "",
-        selectedOptions: transformedOptions,
-      };
-
-      // Find existing item with same options (pakai key unik)
-      const newItemKey = getCartItemKey(newItem);
       const existingItemIndex = merchantItems.findIndex(
-        (ci) => getCartItemKey(ci) === newItemKey
+        (cartItem) =>
+          cartItem.id === newItem.id &&
+          JSON.stringify(cartItem.selectedOptions) ===
+            JSON.stringify(newItem.selectedOptions)
       );
 
       if (existingItemIndex !== -1) {
-        // Update existing item
+        // Update quantity if item exists
         const updatedItems = [...merchantItems];
         updatedItems[existingItemIndex] = {
           ...updatedItems[existingItemIndex],
@@ -388,7 +417,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
           },
         };
       } else {
-        // Add new item
+        // Add new item if it doesn't exist
         return {
           ...prevState,
           items: {
@@ -417,6 +446,16 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
           return cartItem;
         })
         .filter(Boolean) as CartItem[];
+
+      // If this was the last item from this merchant, remove the merchant entry
+      if (updatedMerchantItems.length === 0) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { [merchantId]: _, ...remainingItems } = prevState.items;
+        return {
+          ...prevState,
+          items: remainingItems,
+        };
+      }
 
       return {
         ...prevState,
