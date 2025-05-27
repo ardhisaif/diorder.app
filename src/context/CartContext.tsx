@@ -70,10 +70,10 @@ const getInitialState = (): CartState => {
 // Village shipping costs mapping
 const VILLAGE_SHIPPING_COSTS: { [key: string]: number } = {
   "Ambeng-ambeng Watangrejo": 10000,
-  Bendungan: 10000,
+  Bendungan: 11000,
   Duduksampeyan: 5000,
   Glanggang: 8000,
-  Gredek: 8000,
+  Gredek: 10000,
   Kandangan: 8000,
   Kawistowindu: 8000,
   Kemudi: 8000,
@@ -82,7 +82,7 @@ const VILLAGE_SHIPPING_COSTS: { [key: string]: number } = {
   Pandanan: 10000,
   Panjunan: 10000,
   Petisbenem: 5000,
-  Samirplapan: 5000,
+  Samirplapan: 6000,
   Setrohadi: 5000,
   Sumari: 8000,
   Sumengko: 5000,
@@ -90,7 +90,7 @@ const VILLAGE_SHIPPING_COSTS: { [key: string]: number } = {
   Tebaloan: 8000,
   Tirem: 10000,
   Tumapel: 8000,
-  "Wadak Kidul": 8000,
+  "Wadak Kidul": 10000,
   "Wadak Lor": 10000,
 };
 
