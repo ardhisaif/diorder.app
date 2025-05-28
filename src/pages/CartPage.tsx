@@ -153,6 +153,8 @@ const CartPage: React.FC = () => {
       setShowValidation(true);
       setAlertMessage("Mohon lengkapi data pengiriman");
       setShowAlert(true);
+      // Add auto-scroll to the top of the page
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
