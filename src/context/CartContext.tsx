@@ -287,6 +287,57 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
       ? currentMerchantCount + 1
       : currentMerchantCount;
 
+    // Transform selected options
+    const transformedOptions = item.selectedOptions
+      ? {
+          variant: (() => {
+            const group = item.options?.optionGroups.find(
+              (g) => g.id === "varian" || g.id === "variant"
+            );
+            if (!group) return undefined;
+            const option = group.options.find(
+              (o) => o.id === item.selectedOptions?.[group.id]
+            );
+            if (!option) return undefined;
+            return {
+              label: option.name,
+              value: item.selectedOptions[group.id] as string,
+              extraPrice: option.extraPrice,
+            };
+          })(),
+          level: (() => {
+            const group = item.options?.optionGroups.find(
+              (g) => g.id === "spice_level"
+            );
+            if (!group) return undefined;
+            const option = group.options.find(
+              (o) => o.id === item.selectedOptions?.["spice_level"]
+            );
+            if (!option) return undefined;
+            return {
+              label: option.name,
+              value: item.selectedOptions["spice_level"] as string,
+              extraPrice: option.extraPrice,
+            };
+          })(),
+          toppings: (() => {
+            const group = item.options?.optionGroups.find(
+              (g) => g.type === "multiple_optional"
+            );
+            if (!group) return undefined;
+            return group.options
+              .filter((o) =>
+                (item.selectedOptions?.[group.id] as string[])?.includes(o.id)
+              )
+              .map((o) => ({
+                label: o.name,
+                value: o.id,
+                extraPrice: o.extraPrice,
+              }));
+          })(),
+        }
+      : undefined;
+
     // Create temporary state with new item
     const tempState = {
       ...cartState,
@@ -298,7 +349,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
             ...item,
             quantity,
             notes: "",
-            selectedOptions: item.selectedOptions,
+            selectedOptions: transformedOptions,
           },
         ],
       },
@@ -310,7 +361,28 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
         return (
           total +
           merchantItems.reduce((merchantTotal, item) => {
-            return merchantTotal + item.price * item.quantity;
+            let itemTotal = item.price * item.quantity;
+
+            // Add variant price if exists
+            if (item.selectedOptions?.variant) {
+              itemTotal +=
+                item.selectedOptions.variant.extraPrice * item.quantity;
+            }
+
+            // Add level price if exists
+            if (item.selectedOptions?.level) {
+              itemTotal +=
+                item.selectedOptions.level.extraPrice * item.quantity;
+            }
+
+            // Add toppings price if exists
+            if (item.selectedOptions?.toppings) {
+              item.selectedOptions.toppings.forEach((topping) => {
+                itemTotal += topping.extraPrice * item.quantity;
+              });
+            }
+
+            return merchantTotal + itemTotal;
           }, 0)
         );
       },
@@ -389,7 +461,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
       ...item,
       quantity,
       notes: "",
-      selectedOptions: item.selectedOptions,
+      selectedOptions: transformedOptions,
     };
 
     // Update cart state
