@@ -135,6 +135,14 @@ const CartItem: React.FC<CartItemProps> = ({ item, merchantId }) => {
         />
         <div className="ml-4 flex-1">
           <h3 className="font-bold text-lg">{item.name}</h3>
+          {item.selectedOptions?.variant &&
+            (!item.selectedOptions?.level ||
+              item.selectedOptions.variant.label !==
+                item.selectedOptions.level.label) && (
+              <p className="text-gray-600 text-base">
+                {item.selectedOptions.variant.label}
+              </p>
+            )}
           {item.selectedOptions?.level && (
             <p className="text-gray-600 text-base">
               {item.selectedOptions.level.label}

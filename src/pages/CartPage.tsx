@@ -4,7 +4,7 @@ import { useCart } from "../context/CartContext";
 import CartItem from "../components/CartItem";
 import Header from "../components/Header";
 import supabase from "../utils/supabase/client";
-import { ShoppingBag, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { isCurrentlyOpen } from "../utils/merchantUtils";
 import { Merchant } from "../types";
 import { CartItemSkeleton } from "../components/Skeletons";
@@ -600,22 +600,8 @@ const CartPage: React.FC = () => {
         ) : (
           <>
             {renderShippingForm()}
-            {merchantsWithItems.length > 0 ? (
-              merchantsWithItems.map(renderMerchantItems)
-            ) : (
-              <div className="bg-white rounded-lg shadow-md p-8 text-center">
-                <ShoppingBag size={48} className="mx-auto text-gray-400 mb-4" />
-                <h2 className="text-xl font-bold mb-2">Keranjang Kosong</h2>
-                <p className="text-gray-600 mb-4">
-                  Anda belum menambahkan item ke keranjang
-                </p>
-                <button
-                  onClick={() => navigate("/")}
-                  className="bg-orange-500 text-white py-2 px-4 rounded-lg font-medium"
-                >
-                  Lihat Merchant
-                </button>
-              </div>
+            {merchantsWithItems.map((merchant) =>
+              renderMerchantItems(merchant)
             )}
           </>
         )}
