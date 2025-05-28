@@ -347,8 +347,43 @@ const CartPage: React.FC = () => {
               }))
             ),
             notes: customerInfo.notes || null,
+            delivery_fee: deliveryFee,
           },
         ]);
+        // --- ASYNC UPDATE POINTS (FIRE AND FORGET) ---
+        (async () => {
+          try {
+            // Update point menu
+            for (const merchant of merchantsWithItems) {
+              if (isCurrentlyOpen(merchant.openingHours)) {
+                const items = getMerchantItems(merchant.id);
+                for (const item of items) {
+                  // Increment point menu secara atomic
+                  await supabase.rpc("increment_menu_point", {
+                    menu_id: item.id,
+                    increment_by: item.quantity,
+                  });
+                }
+              }
+            }
+            // Update point merchant
+            for (const merchant of merchantsWithItems) {
+              if (isCurrentlyOpen(merchant.openingHours)) {
+                const merchantSubtotal = getMerchantTotalPrice(merchant.id);
+                const addPoint = Math.floor(merchantSubtotal / 1000);
+                if (addPoint > 0) {
+                  // Increment point merchant secara atomic
+                  await supabase.rpc("increment_merchant_point", {
+                    merchant_id: merchant.id,
+                    increment_by: addPoint,
+                  });
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Gagal update point menu/merchant:", err);
+          }
+        })();
       } catch (err) {
         // Tidak perlu notifikasi user, hanya log error
         console.error("Gagal menyimpan pesanan ke database:", err);
