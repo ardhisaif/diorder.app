@@ -8,6 +8,7 @@ export interface Merchant {
     close: string;
   };
   updated_at: string;
+  point: number;
 }
 
 export interface MenuItem {
