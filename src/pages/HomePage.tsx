@@ -161,15 +161,18 @@ const HomePage: React.FC = () => {
 
   // Sort merchants by open status (avoid mutating original array)
   const sortedMerchants = useMemo(() => {
-    // Urutkan berdasarkan nama (A-Z) lebih dulu
-    const byName = merchants
-      .slice()
-      .sort((a, b) => a.name.localeCompare(b.name));
-    // Lalu urutkan berdasarkan status buka/tutup (buka di atas)
-    return byName.sort((a, b) => {
+    return merchants.slice().sort((a, b) => {
       const isOpenA = a.openingHours ? isCurrentlyOpen(a.openingHours) : false;
       const isOpenB = b.openingHours ? isCurrentlyOpen(b.openingHours) : false;
-      return isOpenA === isOpenB ? 0 : isOpenA ? -1 : 1;
+      if (isOpenA !== isOpenB) {
+        return isOpenA ? -1 : 1; // buka di atas
+      }
+      // Jika sama-sama buka/tutup, urutkan point terbesar ke terkecil
+      if ((a.point ?? 0) !== (b.point ?? 0)) {
+        return (b.point ?? 0) - (a.point ?? 0);
+      }
+      // Jika point sama, urutkan nama A-Z
+      return a.name.localeCompare(b.name);
     });
   }, [merchants]);
 
