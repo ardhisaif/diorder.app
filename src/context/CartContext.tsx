@@ -291,8 +291,13 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     const transformedOptions = item.selectedOptions
       ? {
           variant: (() => {
+            // Check for all possible variant group IDs
             const group = item.options?.optionGroups.find(
-              (g) => g.id === "varian" || g.id === "variant"
+              (g) =>
+                g.id === "varian" ||
+                g.id === "variant" ||
+                g.id === "rasa" ||
+                g.id === "1"
             );
             if (!group) return undefined;
             const option = group.options.find(
