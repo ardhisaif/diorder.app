@@ -16,28 +16,29 @@ const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER;
 
 // Village shipping costs mapping
 const VILLAGE_SHIPPING_COSTS: { [key: string]: number } = {
-  "Ambeng-ambeng Watangrejo": 10000,
-  Bendungan: 10000,
+  "Ambeng-ambeng Watangrejo": 11000,
+  Bendungan: 11000,
   Duduksampeyan: 5000,
-  Glanggang: 8000,
-  Gredek: 8000,
-  Kandangan: 8000,
+  Glanggang: 10000,
+  Gredek: 10000,
+  Kandangan: 10000,
   Kawistowindu: 8000,
   Kemudi: 8000,
-  "Kramat Kulon": 10000,
+  "Kramat Kulon": 12000,
+  Mandepo: 8000,
   Palebon: 8000,
   Pandanan: 10000,
-  Panjunan: 10000,
+  Panjunan: 12000,
   Petisbenem: 5000,
-  Samirplapan: 5000,
+  Samirplapan: 6000,
   Setrohadi: 5000,
   Sumari: 8000,
-  Sumengko: 5000,
+  Sumengko: 6000,
   Tambakrejo: 10000,
-  Tebaloan: 8000,
+  Tebaloan: 10000,
   Tirem: 10000,
-  Tumapel: 8000,
-  "Wadak Kidul": 8000,
+  Tumapel: 10000,
+  "Wadak Kidul": 10000,
   "Wadak Lor": 10000,
 };
 
@@ -161,7 +162,7 @@ const CartPage: React.FC = () => {
     setIsLoading(true);
 
     const subtotal = merchantsWithItems.reduce((total, merchant) => {
-      if (isCurrentlyOpen(merchant.openingHours)) {
+      if (merchant.is_open && isCurrentlyOpen(merchant.openingHours)) {
         return total + getMerchantTotalPrice(merchant.id);
       }
       return total;
@@ -191,7 +192,7 @@ const CartPage: React.FC = () => {
 
     // Add orders from each merchant
     merchantsWithItems.forEach((merchant) => {
-      if (isCurrentlyOpen(merchant.openingHours)) {
+      if (merchant.is_open && isCurrentlyOpen(merchant.openingHours)) {
         const items = getMerchantItems(merchant.id);
         const merchantSubtotal = getMerchantTotalPrice(merchant.id);
 
@@ -285,7 +286,7 @@ const CartPage: React.FC = () => {
         currency: "IDR",
         shipping: deliveryFee,
         items: merchantsWithItems.flatMap((merchant) => {
-          if (isCurrentlyOpen(merchant.openingHours)) {
+          if (merchant.is_open && isCurrentlyOpen(merchant.openingHours)) {
             const items = getMerchantItems(merchant.id);
             return items.map((item) => ({
               item_id: `${merchant.id}-${item.id}`,
@@ -312,8 +313,8 @@ const CartPage: React.FC = () => {
             order_id: orderId,
             order_value: totalWithDelivery,
             item_count: transactionData.items.length,
-            merchant_count: merchantsWithItems.filter((m) =>
-              isCurrentlyOpen(m.openingHours)
+            merchant_count: merchantsWithItems.filter(
+              (m) => m.is_open && isCurrentlyOpen(m.openingHours)
             ).length,
           });
         }
@@ -355,7 +356,7 @@ const CartPage: React.FC = () => {
           try {
             // Update point menu
             for (const merchant of merchantsWithItems) {
-              if (isCurrentlyOpen(merchant.openingHours)) {
+              if (merchant.is_open && isCurrentlyOpen(merchant.openingHours)) {
                 const items = getMerchantItems(merchant.id);
                 for (const item of items) {
                   // Increment point menu secara atomic
@@ -368,7 +369,7 @@ const CartPage: React.FC = () => {
             }
             // Update point merchant
             for (const merchant of merchantsWithItems) {
-              if (isCurrentlyOpen(merchant.openingHours)) {
+              if (merchant.is_open && isCurrentlyOpen(merchant.openingHours)) {
                 const merchantSubtotal = getMerchantTotalPrice(merchant.id);
                 const addPoint = Math.floor(merchantSubtotal / 1000);
                 if (addPoint > 0) {
@@ -548,7 +549,7 @@ const CartPage: React.FC = () => {
   const renderMerchantItems = (merchant: Merchant) => {
     const items = getMerchantItems(merchant.id);
     const merchantSubtotal = getMerchantTotalPrice(merchant.id);
-    const isOpen = isCurrentlyOpen(merchant.openingHours);
+    const isOpen = merchant.is_open && isCurrentlyOpen(merchant.openingHours);
 
     return (
       <div
@@ -598,7 +599,7 @@ const CartPage: React.FC = () => {
 
   const cartEmpty = merchantsWithItems.length === 0;
   const subtotal = merchantsWithItems.reduce((total, merchant) => {
-    if (isCurrentlyOpen(merchant.openingHours)) {
+    if (merchant.is_open && isCurrentlyOpen(merchant.openingHours)) {
       return total + getMerchantTotalPrice(merchant.id);
     }
     return total;

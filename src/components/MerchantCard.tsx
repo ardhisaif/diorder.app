@@ -16,7 +16,7 @@ const MerchantCard: React.FC<MerchantCardProps> = ({
   priority = true,
   isServiceOpen = true,
 }) => {
-  const isOpen = isCurrentlyOpen(merchant.openingHours);
+  const isOpen = merchant.is_open && isCurrentlyOpen(merchant.openingHours);
   const shouldBeGrayscale = !isOpen || !isServiceOpen;
   const navigate = useNavigate();
 

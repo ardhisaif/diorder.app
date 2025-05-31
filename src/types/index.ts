@@ -8,6 +8,7 @@ export interface Merchant {
     close: string;
   };
   updated_at: string;
+  is_open: boolean;
   point: number;
 }
 
