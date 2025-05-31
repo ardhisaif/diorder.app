@@ -52,4 +52,5 @@ export const AnnouncementProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAnnouncements = () => useContext(AnnouncementContext);

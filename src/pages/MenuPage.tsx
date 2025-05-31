@@ -77,7 +77,10 @@ const MenuPage: React.FC = () => {
             );
             if (cachedMerchant) {
               setMerchant(cachedMerchant);
-              setIsOpen(isCurrentlyOpen(cachedMerchant.openingHours));
+              setIsOpen(
+                cachedMerchant.is_open &&
+                  isCurrentlyOpen(cachedMerchant.openingHours)
+              );
             }
           }
           if (filteredMenuItems.length > 0) {
@@ -151,7 +154,10 @@ const MenuPage: React.FC = () => {
                   responses[0];
                 if (!merchantError && merchantData && isMounted) {
                   setMerchant(merchantData);
-                  setIsOpen(isCurrentlyOpen(merchantData.openingHours));
+                  setIsOpen(
+                    merchantData.is_open &&
+                      isCurrentlyOpen(merchantData.openingHours)
+                  );
                   await indexedDBService.update("merchantInfo", merchantData);
 
                   // Update the merchant timestamp
@@ -207,7 +213,7 @@ const MenuPage: React.FC = () => {
     if (!merchant) return;
 
     const intervalId = setInterval(() => {
-      setIsOpen(isCurrentlyOpen(merchant.openingHours));
+      setIsOpen(merchant.is_open && isCurrentlyOpen(merchant.openingHours));
     }, 60000);
 
     return () => clearInterval(intervalId);

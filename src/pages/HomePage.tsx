@@ -153,7 +153,9 @@ const HomePage: React.FC = () => {
     (merchantId: number): boolean => {
       const merchant = merchants.find((m) => m.id === merchantId);
       return merchant
-        ? isCurrentlyOpen(merchant.openingHours) && isServiceOpen
+        ? merchant.is_open &&
+            isCurrentlyOpen(merchant.openingHours) &&
+            isServiceOpen
         : false;
     },
     [merchants, isServiceOpen]
@@ -162,8 +164,10 @@ const HomePage: React.FC = () => {
   // Sort merchants by open status (avoid mutating original array)
   const sortedMerchants = useMemo(() => {
     return merchants.slice().sort((a, b) => {
-      const isOpenA = a.openingHours ? isCurrentlyOpen(a.openingHours) : false;
-      const isOpenB = b.openingHours ? isCurrentlyOpen(b.openingHours) : false;
+      const isOpenA =
+        a.is_open && a.openingHours ? isCurrentlyOpen(a.openingHours) : false;
+      const isOpenB =
+        b.is_open && b.openingHours ? isCurrentlyOpen(b.openingHours) : false;
       if (isOpenA !== isOpenB) {
         return isOpenA ? -1 : 1; // buka di atas
       }
@@ -182,12 +186,14 @@ const HomePage: React.FC = () => {
       return products.slice().sort((a, b) => {
         const merchantA = merchants.find((m) => m.id === a.merchant_id);
         const merchantB = merchants.find((m) => m.id === b.merchant_id);
-        const isOpenA = merchantA?.openingHours
-          ? isCurrentlyOpen(merchantA.openingHours)
-          : false;
-        const isOpenB = merchantB?.openingHours
-          ? isCurrentlyOpen(merchantB.openingHours)
-          : false;
+        const isOpenA =
+          merchantA?.is_open && merchantA?.openingHours
+            ? isCurrentlyOpen(merchantA.openingHours)
+            : false;
+        const isOpenB =
+          merchantB?.is_open && merchantB?.openingHours
+            ? isCurrentlyOpen(merchantB.openingHours)
+            : false;
         return isOpenA === isOpenB ? 0 : isOpenA ? -1 : 1;
       });
     },
